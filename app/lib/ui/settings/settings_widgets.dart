@@ -123,6 +123,7 @@ class SettingsTile extends StatelessWidget {
     this.danger = false,
     this.chevron,
     this.tinted = true,
+    this.struck = false,
   }) : assert(title != null || spot != null);
 
   /// Null for a plain row that lines up with [InfoRow]s.
@@ -152,6 +153,10 @@ class SettingsTile extends StatelessWidget {
   /// tinted disc: the default for rows on secondary pages.
   final bool tinted;
 
+  /// Draws the title (and subtitle) with a strikethrough — used when a mode
+  /// makes the control inapplicable but still visible.
+  final bool struck;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -161,6 +166,7 @@ class SettingsTile extends StatelessWidget {
     final endsInGlyph = showChevron || trailing != null;
     final icon = this.icon;
     final title = this.title ?? spot!.title(context.l10n);
+    final strike = struck ? TextDecoration.lineThrough : null;
     return anchorSpot(
       spot,
       InkWell(
@@ -191,11 +197,17 @@ class SettingsTile extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: settingsTitleStyle(context)?.copyWith(color: danger ? colors.danger : scheme.onSurface),
+                        style: settingsTitleStyle(context)?.copyWith(
+                          color: danger ? colors.danger : scheme.onSurface,
+                          decoration: strike,
+                        ),
                       ),
                       if (subtitle case final sub?) ...[
                         const SizedBox(height: 1),
-                        Text(sub, style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary)),
+                        Text(
+                          sub,
+                          style: theme.textTheme.bodySmall?.copyWith(color: colors.textTertiary, decoration: strike),
+                        ),
                       ],
                     ],
                   ),
@@ -236,6 +248,7 @@ class SettingsSwitchTile extends StatelessWidget {
     required this.onChanged,
     this.tint = 0,
     this.tinted = true,
+    this.struck = false,
   }) : assert(title != null || spot != null);
 
   final IconData? icon;
@@ -248,6 +261,7 @@ class SettingsSwitchTile extends StatelessWidget {
   final ValueChanged<bool>? onChanged;
   final int tint;
   final bool tinted;
+  final bool struck;
 
   @override
   Widget build(BuildContext context) {
@@ -265,6 +279,7 @@ class SettingsSwitchTile extends StatelessWidget {
         subtitle: subtitle,
         tint: tint,
         tinted: tinted,
+        struck: struck,
         onTap: onChanged == null ? null : () => change(!value),
         trailing: Switch.adaptive(value: value, onChanged: onChanged == null ? null : change),
       ),
@@ -402,6 +417,7 @@ class SettingsSegmentTile<T> extends StatelessWidget {
     required this.onChanged,
     this.onReselect,
     this.tinted = true,
+    this.struck = false,
   }) : assert(title != null || spot != null);
 
   final IconData? icon;
@@ -423,16 +439,21 @@ class SettingsSegmentTile<T> extends StatelessWidget {
   /// See [SegmentedPill.onReselect].
   final ValueChanged<T>? onReselect;
   final bool tinted;
+  final bool struck;
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle = settingsTitleStyle(context);
+    final titleStyle = settingsTitleStyle(context)?.copyWith(
+      decoration: struck ? TextDecoration.lineThrough : null,
+    );
     final icon = this.icon;
     final title = this.title ?? spot!.title(context.l10n);
     const iconWidth = SettingsMetrics.icon + SettingsMetrics.iconGap;
     return anchorSpot(
       spot,
-      Padding(
+      Opacity(
+        opacity: struck && onChanged == null ? 0.55 : 1,
+        child: Padding(
         padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 8, SettingsMetrics.inset, 8),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -469,7 +490,10 @@ class SettingsSegmentTile<T> extends StatelessWidget {
                   children: [
                     Text(
                       sub,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: DshColors.of(context).textTertiary),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: DshColors.of(context).textTertiary,
+                        decoration: struck ? TextDecoration.lineThrough : null,
+                      ),
                     ),
                     ?subtitleAction,
                   ],
@@ -515,6 +539,7 @@ class SettingsSegmentTile<T> extends StatelessWidget {
             );
           },
         ),
+      ),
       ),
     );
   }

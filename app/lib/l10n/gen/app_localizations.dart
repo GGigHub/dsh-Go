@@ -34205,7 +34205,7 @@ abstract class L10n {
   /// No description provided for @speechCallFooter.
   ///
   /// In zh, this message translates to:
-  /// **'通话时说完一句停一下，就会发出去；回答边写边读。'**
+  /// **'通话时说完一句停一下，就会发出去；回答边写边读。配置了 Qwen Realtime 后改为全双工云端通话。'**
   String get speechCallFooter;
 
   /// No description provided for @speechCallBargeIn.
@@ -34243,6 +34243,102 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'接上耳机时总用耳机'**
   String get speechCallSpeakerHint;
+
+  /// No description provided for @speechRealtimeSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'Qwen Realtime 全双工'**
+  String get speechRealtimeSection;
+
+  /// No description provided for @speechRealtimeFooter.
+  ///
+  /// In zh, this message translates to:
+  /// **'一般只需填 API Key；下方已预填 Omni 默认。业务空间专属域名请改接入地址。Key 只存在这台手机。'**
+  String get speechRealtimeFooter;
+
+  /// No description provided for @speechRealtimeEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用 Realtime 通话'**
+  String get speechRealtimeEnabled;
+
+  /// No description provided for @speechRealtimeEnabledHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开且填了 Key 后，加号里的语音通话走全双工'**
+  String get speechRealtimeEnabledHint;
+
+  /// No description provided for @speechRealtimeBaseHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
+  String get speechRealtimeBaseHelper;
+
+  /// No description provided for @speechRealtimeModelHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认 qwen3.8-omni-flash-realtime'**
+  String get speechRealtimeModelHelper;
+
+  /// No description provided for @speechRealtimeVoiceHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'默认 Tina'**
+  String get speechRealtimeVoiceHelper;
+
+  /// No description provided for @speechRealtimeLegacyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'Realtime 通话由云端接管，此项不适用'**
+  String get speechRealtimeLegacyHint;
+
+  /// No description provided for @speechRealtimeKeyLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key'**
+  String get speechRealtimeKeyLabel;
+
+  /// No description provided for @speechRealtimeBaseLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'接入地址'**
+  String get speechRealtimeBaseLabel;
+
+  /// No description provided for @speechRealtimeModelLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get speechRealtimeModelLabel;
+
+  /// No description provided for @speechRealtimeVoiceLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'音色'**
+  String get speechRealtimeVoiceLabel;
+
+  /// No description provided for @speechRealtimeVerify.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证连接'**
+  String get speechRealtimeVerify;
+
+  /// No description provided for @speechRealtimeVerifyNeedKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先填写 API Key'**
+  String get speechRealtimeVerifyNeedKey;
+
+  /// No description provided for @speechRealtimeVerifyOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接成功，可以开始语音通话'**
+  String get speechRealtimeVerifyOk;
+
+  /// No description provided for @speechRealtimeVerifyFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证失败：{error}'**
+  String speechRealtimeVerifyFailed(String error);
 
   /// No description provided for @speechCallHint.
   ///

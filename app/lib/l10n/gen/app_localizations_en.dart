@@ -19655,7 +19655,7 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallFooter =>
-      'In a call, pause after you speak and it is sent; the answer is read while it is written.';
+      'In a call, pause after you speak and it is sent; the answer is read while it is written. With Qwen Realtime configured, calls become full-duplex.';
 
   @override
   String get speechCallBargeIn => 'Interrupt by speaking';
@@ -19675,6 +19675,57 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallSpeakerHint => 'Headphones always win when connected';
+
+  @override
+  String get speechRealtimeSection => 'Qwen Realtime (full duplex)';
+
+  @override
+  String get speechRealtimeFooter =>
+      'Usually only the API key is needed; Omni defaults are prefilled. Change the endpoint for a workspace host. The key stays on this phone.';
+
+  @override
+  String get speechRealtimeEnabled => 'Use Realtime calls';
+
+  @override
+  String get speechRealtimeEnabledHint => 'When on and a key is set, the composer’s voice call uses full duplex';
+
+  @override
+  String get speechRealtimeBaseHelper => 'Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+
+  @override
+  String get speechRealtimeModelHelper => 'Default qwen3.8-omni-flash-realtime';
+
+  @override
+  String get speechRealtimeVoiceHelper => 'Default Tina';
+
+  @override
+  String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud owns turn-taking)';
+
+  @override
+  String get speechRealtimeKeyLabel => 'API key';
+
+  @override
+  String get speechRealtimeBaseLabel => 'Endpoint';
+
+  @override
+  String get speechRealtimeModelLabel => 'Model';
+
+  @override
+  String get speechRealtimeVoiceLabel => 'Voice';
+
+  @override
+  String get speechRealtimeVerify => 'Verify connection';
+
+  @override
+  String get speechRealtimeVerifyNeedKey => 'Enter an API key first';
+
+  @override
+  String get speechRealtimeVerifyOk => 'Connected — you can start a voice call';
+
+  @override
+  String speechRealtimeVerifyFailed(String error) {
+    return 'Verification failed: $error';
+  }
 
   @override
   String get speechCallHint =>
