@@ -41,6 +41,7 @@ import '../session/session_detail_page.dart';
 import '../settings/search/settings_search_page.dart';
 import '../settings/settings_screen.dart';
 import '../share_code/share_code_host.dart';
+import '../speech/realtime_wake_host.dart';
 import '../tavern/tavern_intake.dart';
 import '../star/star_prompt_host.dart';
 import '../theme/theme.dart';
@@ -311,22 +312,23 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
     final chat = widget.chatBuilder?.call(_onMenu) ?? ChatScreen(onOpenDrawer: _onMenu, backdrop: false);
     // The floating pet outside the app hears every pet state.
     ref.listen<void>(petOverlayBridgeProvider, (_, _) {});
-    return SafeModeNoticeListener(
-      child: PhoneStopWatcher(
-        child: PopScope(
-          canPop: !_open && !_quickPanelOpen && !(selecting && sidebar),
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop) return;
-            final selection = ref.read(drawerSelectionProvider.notifier);
-            if (_quickPanelOpen) {
-              _closeQuickPanel();
-            } else if (selection.active) {
-              selection.end();
-            } else {
-              _closeDrawer();
-            }
-          },
-          child: AnnotatedRegion<SystemUiOverlayStyle>(
+    return RealtimeWakeHost(
+      child: SafeModeNoticeListener(
+        child: PhoneStopWatcher(
+          child: PopScope(
+            canPop: !_open && !_quickPanelOpen && !(selecting && sidebar),
+            onPopInvokedWithResult: (didPop, _) {
+              if (didPop) return;
+              final selection = ref.read(drawerSelectionProvider.notifier);
+              if (_quickPanelOpen) {
+                _closeQuickPanel();
+              } else if (selection.active) {
+                selection.end();
+              } else {
+                _closeDrawer();
+              }
+            },
+            child: AnnotatedRegion<SystemUiOverlayStyle>(
             value: dshSystemOverlay(Theme.of(context).brightness),
             // 首页 / 对话 and the drawer: the custom wallpaper when one is in use.
             child: WallpaperBackdrop(
@@ -457,6 +459,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with TickerProviderStateM
               ),
             ),
           ),
+        ),
         ),
       ),
     );

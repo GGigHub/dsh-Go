@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- The live activity (notify/LiveActivity.kt): Android 16 QPR1+ promotes it to a Live Update.
          Normal, granted at install; older systems skip a permission they don't define. -->
@@ -266,6 +267,18 @@
                 android:value="Shows the user's floating assistant pet while their remote agent session runs" />
         </service>
 
+        <!-- Qwen Realtime: keep mic+WS while the call UI is backgrounded. -->
+        <service
+            android:name=".speech.RealtimeCallService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+        <!-- Qwen Realtime: system SpeechRecognizer wake phrase → open call. -->
+        <service
+            android:name=".speech.RealtimeWakeService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
         <!-- 手机操控: reads and drives the main screen, owns the status bar / confirm overlay (phone/a11y). -->
         <service
             android:name=".phone.a11y.PhoneA11yService"
@@ -363,6 +376,10 @@
              target SDK reaches 30. Harmless at 28. -->
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE"/>
+        </intent>
+        <!-- Realtime wake: package visibility for SpeechRecognizer on API 30+. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>
