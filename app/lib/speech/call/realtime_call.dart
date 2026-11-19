@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import '../../voice/streaming_pcm.dart';
+import '../realtime/qwen_realtime_log.dart';
 import '../realtime/qwen_realtime_session.dart';
 import '../realtime/qwen_realtime_settings.dart';
 import '../speech_audio.dart';
@@ -78,6 +79,10 @@ class RealtimeCallController extends CallController {
 
   @override
   Future<void> start() async {
+    realtimeLog(
+      'call start model=${settings.model} base=${settings.base} '
+      'key=${realtimeMaskSecret(settings.key)}',
+    );
     final chosen = await choices();
     if (_disposed || _phase == CallPhase.ended) return;
     _bargeIn = chosen.bargeIn;
@@ -89,6 +94,7 @@ class RealtimeCallController extends CallController {
       _asking = true;
       final granted = await ask().catchError((Object _) => false);
       _asking = false;
+      realtimeLog('mic permission granted=$granted');
       if (_disposed || _phase == CallPhase.ended) return;
       if (!granted) {
         _end(CallEnd.permission);
@@ -102,6 +108,7 @@ class RealtimeCallController extends CallController {
     try {
       await session.open(settings);
     } catch (error) {
+      realtimeLog('session.open threw: $error');
       _error = error is TimeoutException || error is StateError || error is ArgumentError
           ? error.toString()
           : error;
@@ -112,6 +119,7 @@ class RealtimeCallController extends CallController {
 
     // Native barge-in off: the cloud VAD owns turn-taking; we still need the mic.
     final started = await audio.startCall(bargeIn: false, pause: CallPause.patient);
+    realtimeLog('audio.startCall → $started');
     if (_disposed || _phase == CallPhase.ended) {
       if (started == CallStart.ok) unawaited(audio.stopCall());
       return;
@@ -122,7 +130,9 @@ class RealtimeCallController extends CallController {
         _audioSub = audio.events.listen(_onAudio);
         try {
           await pcm.start(StreamingPcmSource.call);
-        } on Object {
+          realtimeLog('pcm.start ok');
+        } on Object catch (e) {
+          realtimeLog('pcm.start failed: $e');
           _end(CallEnd.microphone);
           return;
         }
@@ -209,11 +219,15 @@ class RealtimeCallController extends CallController {
         unawaited(_stopPlay());
         if (_phase == CallPhase.speaking) _set(CallPhase.listening);
       case QwenRealtimeError(:final message):
+        realtimeLog('session event error: $message');
         _error = message;
         notifyListeners();
         _end(CallEnd.failed);
       case QwenRealtimeClosed():
-        if (_phase != CallPhase.ended) _end(CallEnd.failed);
+        if (_phase != CallPhase.ended) {
+          realtimeLog('session closed unexpectedly phase=$_phase');
+          _end(CallEnd.failed);
+        }
     }
   }
 
@@ -303,6 +317,7 @@ class RealtimeCallController extends CallController {
 
   void _end(CallEnd why) {
     if (_phase == CallPhase.ended) return;
+    realtimeLog('call end reason=$why error=$_error');
     _ended = why;
     _phase = CallPhase.ended;
     unawaited(_tearDown());

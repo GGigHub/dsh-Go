@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'qwen_realtime_log.dart';
 import 'qwen_realtime_settings.dart';
 
 sealed class QwenRealtimeEvent {
@@ -101,24 +102,41 @@ class QwenRealtimeSession {
     final workspace = settings.workspaceId;
     if (workspace != null) headers['X-DashScope-WorkSpace'] = workspace;
 
-    final ws = await _connect(uri, headers: headers);
-    if (_closed) {
-      await ws.close();
-      return;
-    }
-    _ws = ws;
-    final updated = _updated = Completer<void>();
-    _pendingUpdate = {
-      'type': 'session.update',
-      'session': _sessionConfig(settings),
-    };
-    ws.listen(_onMessage, onError: (_) => _fail('connection error'), onDone: _onDone);
-
+    realtimeLog(
+      'open model=${settings.model} omni=${settings.isOmniRealtime} '
+      'voice=${settings.voice} workspace=${workspace ?? '(none)'} '
+      'key=${realtimeMaskSecret(key)} uri=$uri',
+    );
     try {
-      await updated.future.timeout(const Duration(seconds: 20));
-    } on TimeoutException {
-      await close();
-      throw TimeoutException('realtime session.update timed out');
+      final ws = await _connect(uri, headers: headers);
+      if (_closed) {
+        await ws.close();
+        return;
+      }
+      _ws = ws;
+      realtimeLog('websocket connected');
+      final updated = _updated = Completer<void>();
+      _pendingUpdate = {
+        'type': 'session.update',
+        'session': _sessionConfig(settings),
+      };
+      ws.listen(
+        _onMessage,
+        onError: (Object e) => _fail('connection error: $e'),
+        onDone: _onDone,
+      );
+
+      try {
+        await updated.future.timeout(const Duration(seconds: 20));
+        realtimeLog('session.updated ok');
+      } on TimeoutException {
+        realtimeLog('session.update timed out waiting for session.updated');
+        await close();
+        throw TimeoutException('realtime session.update timed out');
+      }
+    } on Object catch (e) {
+      realtimeLog('open failed: $e');
+      rethrow;
     }
   }
 
@@ -199,10 +217,19 @@ class QwenRealtimeSession {
     final ws = _ws;
     if (ws == null || _closed) return;
     event.putIfAbsent('event_id', () => 'event_${++_event}');
+    final type = event['type'];
+    if (type == 'session.update') {
+      final session = event['session'];
+      realtimeLog(
+        'send session.update keys=${session is Map ? session.keys.toList() : session}',
+      );
+    } else if (type != 'input_audio_buffer.append') {
+      realtimeLog('send $type');
+    }
     try {
       ws.add(jsonEncode(event));
-    } on Object {
-      _fail('send failed');
+    } on Object catch (e) {
+      _fail('send failed: $e');
     }
   }
 
@@ -216,12 +243,20 @@ class QwenRealtimeSession {
       } else if (decoded is Map) {
         json = decoded.map((k, v) => MapEntry('$k', v));
       }
-    } on Object {
+    } on Object catch (e) {
+      realtimeLog('bad server frame: $e');
       return;
     }
     if (json == null) return;
     final type = json['type'];
     if (type is! String) return;
+    // Skip high-frequency audio/text deltas in logcat.
+    if (type != 'response.audio.delta' &&
+        type != 'response.audio_transcript.delta' &&
+        type != 'response.text.delta' &&
+        type != 'conversation.item.input_audio_transcription.delta') {
+      realtimeLog('recv $type');
+    }
     switch (type) {
       case 'session.created':
         final pending = _pendingUpdate;
@@ -266,7 +301,10 @@ class QwenRealtimeSession {
         _emit(QwenRealtimeResponseDone(id));
       case 'error':
         final err = json['error'];
-        final message = err is Map ? '${err['message'] ?? err['code'] ?? err}' : '$err';
+        final message = err is Map
+            ? '${err['code'] ?? ''} ${err['message'] ?? err}'.trim()
+            : '$err';
+        realtimeLog('server error raw=$err');
         _fail(message.isEmpty ? 'realtime error' : message);
       default:
         break;
@@ -290,6 +328,7 @@ class QwenRealtimeSession {
 
   void _fail(String message) {
     if (_closed) return;
+    realtimeLog('fail: $message');
     final waiting = _updated;
     if (waiting != null && !waiting.isCompleted) waiting.completeError(StateError(message));
     _emit(QwenRealtimeError(message));
