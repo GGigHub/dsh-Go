@@ -3,10 +3,12 @@
 import 'package:flutter/foundation.dart';
 
 /// Always on in debug/profile builds so a debug APK can be grepped via:
-/// `adb logcat | grep dsh.realtime`
+/// `adb logcat -s flutter | grep dsh.realtime`
+/// or `adb logcat | findstr dsh.realtime`
 void realtimeLog(String message) {
   if (kReleaseMode) return;
-  debugPrint('[dsh.realtime] $message');
+  final ts = DateTime.now().toIso8601String();
+  debugPrint('[dsh.realtime] $ts $message');
 }
 
 /// Mask a secret: prefix…suffix + length. Empty → "(empty)".

@@ -1,5 +1,6 @@
 // Probe the current Realtime settings without starting a voice call.
 
+import 'qwen_realtime_log.dart';
 import 'qwen_realtime_session.dart';
 import 'qwen_realtime_settings.dart';
 
@@ -18,12 +19,17 @@ final class QwenRealtimeVerifyFailed extends QwenRealtimeVerifyResult {
 
 /// Opens a session through `session.updated`, then closes. Does not use the mic.
 Future<QwenRealtimeVerifyResult> verifyQwenRealtime(QwenRealtimeSettings settings) async {
+  final local = settings.isLocalLan;
   final key = sanitizeRealtimeKey(settings.key);
-  if (key.isEmpty) return const QwenRealtimeVerifyFailed('API Key is empty');
-  final shape = realtimeKeyShapeHint(key);
+  realtimeLog(
+    'verify start localLan=$local base=${settings.base} model=${settings.model} '
+    'key=${realtimeMaskSecret(key)}',
+  );
+  if (!local && key.isEmpty) return const QwenRealtimeVerifyFailed('API Key is empty');
+  final shape = realtimeKeyShapeHint(key, localLan: local);
   if (shape != null) return QwenRealtimeVerifyFailed(shape);
   if (settings.websocketUri == null) return const QwenRealtimeVerifyFailed('invalid endpoint');
-  if (settings.isOmniRealtime && settings.workspaceId == null) {
+  if (!local && settings.isOmniRealtime && settings.workspaceId == null) {
     return const QwenRealtimeVerifyFailed(
       'Omni needs a workspace host: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime',
     );
@@ -32,8 +38,10 @@ Future<QwenRealtimeVerifyResult> verifyQwenRealtime(QwenRealtimeSettings setting
   try {
     await session.open(settings.copyWith(key: key));
     await session.close();
+    realtimeLog('verify ok localLan=$local');
     return const QwenRealtimeVerifyOk();
   } on Object catch (e) {
+    realtimeLog('verify failed: $e');
     try {
       await session.close();
     } on Object {

@@ -80,8 +80,9 @@ class RealtimeCallController extends CallController {
   @override
   Future<void> start() async {
     realtimeLog(
-      'call start model=${settings.model} base=${settings.base} '
-      'key=${realtimeMaskSecret(settings.key)}',
+      'call start localLan=${settings.isLocalLan} model=${settings.model} '
+      'base=${settings.base} voice=${settings.voice} '
+      'key=${realtimeMaskSecret(settings.key)} ready=${settings.ready}',
     );
     final chosen = await choices();
     if (_disposed || _phase == CallPhase.ended) return;
@@ -136,8 +137,13 @@ class RealtimeCallController extends CallController {
           _end(CallEnd.microphone);
           return;
         }
+        var frames = 0;
         _pcmSub = pcm.frames.listen((frame) {
           if (_muted || _phase == CallPhase.ended) return;
+          frames++;
+          if (frames == 1 || frames % 100 == 0) {
+            realtimeLog('pcm frame #$frames bytes=${frame.length} phase=$_phase muted=$_muted');
+          }
           _session?.appendPcm(frame);
         });
         _set(CallPhase.listening);
@@ -341,6 +347,7 @@ class RealtimeCallController extends CallController {
 
   void _set(CallPhase phase) {
     if (_phase == phase || _phase == CallPhase.ended) return;
+    realtimeLog('phase $_phase → $phase');
     _phase = phase;
     notifyListeners();
   }

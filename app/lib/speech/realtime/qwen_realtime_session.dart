@@ -1,4 +1,4 @@
-// Qwen-Audio / Qwen-Omni Realtime WebSocket: App ↔ DashScope full-duplex audio.
+// Qwen-Audio / Qwen-Omni Realtime WebSocket: App ↔ DashScope or LAN gateway.
 
 import 'dart:async';
 import 'dart:convert';
@@ -74,7 +74,7 @@ final class QwenRealtimeClosed extends QwenRealtimeEvent {
   const QwenRealtimeClosed();
 }
 
-/// One DashScope realtime session. Caller owns mic/playback.
+/// One realtime session (Bailian or LAN gateway). Caller owns mic/playback.
 class QwenRealtimeSession {
   QwenRealtimeSession({
     Future<WebSocket> Function(Uri uri, {Map<String, String>? headers})? connect,
@@ -87,8 +87,15 @@ class QwenRealtimeSession {
   WebSocket? _ws;
   int _event = 0;
   bool _closed = false;
+  bool _localLan = false;
   Map<String, Object?>? _pendingUpdate;
   Completer<void>? _updated;
+
+  int _uplinkFrames = 0;
+  int _uplinkBytes = 0;
+  int _downlinkChunks = 0;
+  int _downlinkBytes = 0;
+  DateTime? _lastUplinkLog;
 
   Stream<QwenRealtimeEvent> get events => _events.stream;
 
@@ -98,20 +105,28 @@ class QwenRealtimeSession {
     if (_closed) throw StateError('session closed');
     final uri = settings.websocketUri;
     if (uri == null) throw ArgumentError('invalid realtime endpoint');
+    final local = settings.isLocalLan;
+    _localLan = local;
     final key = sanitizeRealtimeKey(settings.key);
-    if (key.isEmpty) throw ArgumentError('realtime key required');
+    if (!local && key.isEmpty) throw ArgumentError('realtime key required');
 
-    final shape = realtimeKeyShapeHint(key);
+    final shape = realtimeKeyShapeHint(key, localLan: local);
     if (shape != null) realtimeLog('key shape warning: $shape');
 
-    final headers = <String, String>{'Authorization': 'Bearer $key'};
+    final headers = <String, String>{};
+    if (key.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $key';
+    } else if (local) {
+      headers['Authorization'] = 'Bearer $qwenRealtimeLocalBearer';
+    }
     final workspace = settings.workspaceId;
     if (workspace != null) headers['X-DashScope-WorkSpace'] = workspace;
 
     realtimeLog(
-      'open model=${settings.model} omni=${settings.isOmniRealtime} '
+      'open localLan=$local model=${settings.model} omni=${settings.isOmniRealtime} '
       'voice=${settings.voice} workspace=${workspace ?? '(none)'} '
-      'key=${realtimeMaskSecret(key)} uri=$uri',
+      'key=${realtimeMaskSecret(key.isEmpty && local ? qwenRealtimeLocalBearer : key)} '
+      'scheme=${uri.scheme} host=${uri.host} port=${uri.port} path=${uri.path} uri=$uri',
     );
     try {
       final ws = await _connect(uri, headers: headers);
@@ -120,7 +135,7 @@ class QwenRealtimeSession {
         return;
       }
       _ws = ws;
-      realtimeLog('websocket connected');
+      realtimeLog('websocket connected localLan=$local');
       final updated = _updated = Completer<void>();
       _pendingUpdate = {
         'type': 'session.update',
@@ -128,25 +143,30 @@ class QwenRealtimeSession {
       };
       ws.listen(
         _onMessage,
-        onError: (Object e) => _fail('connection error: $e'),
+        onError: (Object e) {
+          realtimeLog('ws onError: $e');
+          _fail('connection error: $e');
+        },
         onDone: _onDone,
       );
 
       try {
         await updated.future.timeout(const Duration(seconds: 20));
-        realtimeLog('session.updated ok');
+        realtimeLog('session.updated ok localLan=$local');
       } on TimeoutException {
-        realtimeLog('session.update timed out waiting for session.updated');
+        realtimeLog('session.update timed out waiting for session.updated localLan=$local');
         await close();
         throw TimeoutException('realtime session.update timed out');
       }
-    } on Object catch (e) {
+    } on Object catch (e, st) {
       realtimeLog('open failed: $e');
+      realtimeLog('open stack: $st');
       rethrow;
     }
   }
 
   /// Official field layout differs by model family — do not mix levels.
+  /// LAN gateways always get the PCM audio shape the App already streams.
   static Map<String, Object?> _sessionConfig(QwenRealtimeSettings settings) {
     final voice = settings.voice.trim().isEmpty
         ? (settings.isOmniRealtime ? 'Tina' : qwenRealtimeDefaultVoice)
@@ -160,7 +180,7 @@ class QwenRealtimeSession {
         'turn_detection': {'type': 'server_vad'},
       };
     }
-    // qwen-audio-*-realtime-* and older omni shapes.
+    // LAN / qwen-audio-*-realtime-* and older omni shapes.
     return {
       'modalities': ['text', 'audio'],
       'voice': voice,
@@ -187,18 +207,37 @@ class QwenRealtimeSession {
 
   void appendPcm(Uint8List pcm) {
     if (pcm.isEmpty || _ws == null || _closed) return;
+    _uplinkFrames++;
+    _uplinkBytes += pcm.length;
+    final now = DateTime.now();
+    final last = _lastUplinkLog;
+    if (last == null || now.difference(last) >= const Duration(seconds: 2)) {
+      _lastUplinkLog = now;
+      realtimeLog(
+        'uplink frames=$_uplinkFrames bytes=$_uplinkBytes '
+        'lastFrame=${pcm.length} localLan=$_localLan',
+      );
+    }
     _send({'type': 'input_audio_buffer.append', 'audio': base64Encode(pcm)});
   }
 
-  void cancelResponse() => _send({'type': 'response.cancel'});
+  void cancelResponse() {
+    realtimeLog('cancelResponse downlinkChunks=$_downlinkChunks');
+    _send({'type': 'response.cancel'});
+  }
 
   void interrupt() {
+    realtimeLog('interrupt');
     cancelResponse();
     _emit(const QwenRealtimeCleared());
   }
 
   Future<void> close() async {
     if (_closed) return;
+    realtimeLog(
+      'close uplinkFrames=$_uplinkFrames uplinkBytes=$_uplinkBytes '
+      'downlinkChunks=$_downlinkChunks downlinkBytes=$_downlinkBytes',
+    );
     _closed = true;
     final waiting = _updated;
     _updated = null;
@@ -230,7 +269,7 @@ class QwenRealtimeSession {
         'send session.update keys=${session is Map ? session.keys.toList() : session}',
       );
     } else if (type != 'input_audio_buffer.append') {
-      realtimeLog('send $type');
+      realtimeLog('send $type event_id=${event['event_id']}');
     }
     try {
       ws.add(jsonEncode(event));
@@ -250,13 +289,13 @@ class QwenRealtimeSession {
         json = decoded.map((k, v) => MapEntry('$k', v));
       }
     } on Object catch (e) {
-      realtimeLog('bad server frame: $e');
+      realtimeLog('bad server frame: $e rawType=${raw.runtimeType}');
       return;
     }
     if (json == null) return;
     final type = json['type'];
     if (type is! String) return;
-    // Skip high-frequency audio/text deltas in logcat.
+    // Skip high-frequency audio/text deltas in logcat (stats only).
     if (type != 'response.audio.delta' &&
         type != 'response.audio_transcript.delta' &&
         type != 'response.text.delta' &&
@@ -267,6 +306,7 @@ class QwenRealtimeSession {
       case 'session.created':
         final pending = _pendingUpdate;
         _pendingUpdate = null;
+        realtimeLog('session.created → sending pending session.update=${pending != null}');
         if (pending != null) _send(pending);
       case 'session.updated':
         final waiting = _updated;
@@ -282,28 +322,45 @@ class QwenRealtimeSession {
         if (delta is String && delta.isNotEmpty) _emit(QwenRealtimeInputDelta(delta));
       case 'conversation.item.input_audio_transcription.completed':
         final text = json['transcript'] ?? json['text'];
-        if (text is String) _emit(QwenRealtimeInputFinal(text));
+        if (text is String) {
+          realtimeLog('input final len=${text.length}');
+          _emit(QwenRealtimeInputFinal(text));
+        }
       case 'response.created':
         final id = _responseId(json);
+        realtimeLog('response.created id=$id');
         if (id != null) _emit(QwenRealtimeResponseStarted(id));
       case 'response.audio_transcript.delta' || 'response.text.delta':
         final delta = json['delta'];
         if (delta is String && delta.isNotEmpty) _emit(QwenRealtimeOutputDelta(delta));
       case 'response.audio_transcript.done' || 'response.text.done':
         final text = json['transcript'] ?? json['text'];
-        if (text is String) _emit(QwenRealtimeOutputFinal(text));
+        if (text is String) {
+          realtimeLog('output final len=${text.length}');
+          _emit(QwenRealtimeOutputFinal(text));
+        }
       case 'response.audio.delta':
         final delta = json['delta'];
         final id = _responseId(json) ?? 'audio';
         if (delta is String && delta.isNotEmpty) {
           try {
-            _emit(QwenRealtimeAudioDelta(base64Decode(delta), responseId: id));
-          } on Object {
-            // Bad chunk: skip.
+            final pcm = base64Decode(delta);
+            _downlinkChunks++;
+            _downlinkBytes += pcm.length;
+            if (_downlinkChunks == 1 || _downlinkChunks % 40 == 0) {
+              realtimeLog(
+                'downlink chunks=$_downlinkChunks bytes=$_downlinkBytes '
+                'last=${pcm.length} responseId=$id',
+              );
+            }
+            _emit(QwenRealtimeAudioDelta(pcm, responseId: id));
+          } on Object catch (e) {
+            realtimeLog('bad audio delta: $e');
           }
         }
       case 'response.done' || 'response.audio.done':
         final id = _responseId(json) ?? '';
+        realtimeLog('response.done id=$id downlinkChunks=$_downlinkChunks');
         _emit(QwenRealtimeResponseDone(id));
       case 'error':
         final err = json['error'];
@@ -313,6 +370,7 @@ class QwenRealtimeSession {
         realtimeLog('server error raw=$err');
         _fail(message.isEmpty ? 'realtime error' : message);
       default:
+        realtimeLog('recv unhandled type=$type');
         break;
     }
   }
@@ -328,6 +386,7 @@ class QwenRealtimeSession {
   }
 
   void _onDone() {
+    realtimeLog('ws onDone closed=$_closed');
     _ws = null;
     if (!_closed) _fail('connection closed');
   }

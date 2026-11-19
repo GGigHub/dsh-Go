@@ -34253,7 +34253,7 @@ abstract class L10n {
   /// No description provided for @speechRealtimeFooter.
   ///
   /// In zh, this message translates to:
-  /// **'一般只需填 API Key；下方已预填 Omni 默认。业务空间专属域名请改接入地址。Key 只存在这台手机。'**
+  /// **'百炼：填 API Key（Omni 用业务空间域名）。局域网：接入地址填 ws://主机IP:端口/v1/realtime，Key 可空。调试日志：adb logcat | grep dsh.realtime'**
   String get speechRealtimeFooter;
 
   /// No description provided for @speechRealtimeEnabled.
@@ -34265,37 +34265,37 @@ abstract class L10n {
   /// No description provided for @speechRealtimeEnabledHint.
   ///
   /// In zh, this message translates to:
-  /// **'打开且填了 Key 后，加号里的语音通话走全双工'**
+  /// **'打开后，百炼需 Key；局域网只需可达的接入地址'**
   String get speechRealtimeEnabledHint;
 
   /// No description provided for @speechRealtimeBaseHelper.
   ///
   /// In zh, this message translates to:
-  /// **'Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
+  /// **'局域网例：ws://192.168.1.10:8091/v1/realtime；Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
   String get speechRealtimeBaseHelper;
 
   /// No description provided for @speechRealtimeModelHelper.
   ///
   /// In zh, this message translates to:
-  /// **'默认 qwen3.8-omni-flash-realtime'**
+  /// **'局域网可填 minicpm-o-4_5；百炼默认 qwen3.8-omni-flash-realtime'**
   String get speechRealtimeModelHelper;
 
   /// No description provided for @speechRealtimeVoiceHelper.
   ///
   /// In zh, this message translates to:
-  /// **'默认 Tina'**
+  /// **'默认 Tina；局域网网关可忽略'**
   String get speechRealtimeVoiceHelper;
 
   /// No description provided for @speechRealtimeLegacyHint.
   ///
   /// In zh, this message translates to:
-  /// **'Realtime 通话由云端接管，此项不适用'**
+  /// **'Realtime 通话由云端/局域网网关接管，此项不适用'**
   String get speechRealtimeLegacyHint;
 
   /// No description provided for @speechRealtimeKeyLabel.
   ///
   /// In zh, this message translates to:
-  /// **'API Key'**
+  /// **'API Key（局域网可空）'**
   String get speechRealtimeKeyLabel;
 
   /// No description provided for @speechRealtimeBaseLabel.
@@ -34327,6 +34327,12 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'请先填写 API Key'**
   String get speechRealtimeVerifyNeedKey;
+
+  /// No description provided for @speechRealtimeVerifyNeedEndpoint.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先填写有效的接入地址（ws:// 或 wss://）'**
+  String get speechRealtimeVerifyNeedEndpoint;
 
   /// No description provided for @speechRealtimeVerifyOk.
   ///

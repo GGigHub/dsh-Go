@@ -333,8 +333,12 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   Future<void> _verify() async {
     final l10n = context.l10n;
     final settings = _typed;
-    if (settings.key.isEmpty) {
+    if (!settings.isLocalLan && settings.key.isEmpty) {
       showBriefNotice(context, l10n.speechRealtimeVerifyNeedKey);
+      return;
+    }
+    if (settings.websocketUri == null) {
+      showBriefNotice(context, l10n.speechRealtimeVerifyNeedEndpoint);
       return;
     }
     setState(() => _verifying = true);

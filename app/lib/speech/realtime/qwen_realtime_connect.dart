@@ -29,17 +29,26 @@ Future<WebSocket> connectQwenRealtime(
       request.headers.set(entry.key, entry.value, preserveHeaderCase: true);
     }
     realtimeLog(
-      'handshake GET $httpUri auth=${headers.containsKey('Authorization')} '
-      'workspace=${headers['X-DashScope-WorkSpace'] ?? '(none)'}',
+      'handshake GET $httpUri host=${httpUri.host} port=${httpUri.port} '
+      'auth=${headers.containsKey('Authorization')} '
+      'workspace=${headers['X-DashScope-WorkSpace'] ?? '(none)'} '
+      'headerKeys=${headers.keys.toList()}',
     );
 
     final response = await request.close();
     if (response.statusCode != HttpStatus.switchingProtocols) {
       final body = await response.transform(utf8.decoder).join();
-      realtimeLog('handshake HTTP ${response.statusCode} body=$body');
+      realtimeLog(
+        'handshake FAIL HTTP ${response.statusCode} '
+        'contentType=${response.headers.contentType} body=$body',
+      );
       throw StateError(_handshakeError(response.statusCode, body));
     }
     final protocol = response.headers.value('sec-websocket-protocol');
+    realtimeLog(
+      'handshake OK 101 protocol=${protocol ?? '(none)'} '
+      'upgrade=${response.headers.value('upgrade')}',
+    );
     final socket = await response.detachSocket();
     return WebSocket.fromUpgradedSocket(socket, protocol: protocol, serverSide: false);
   } finally {

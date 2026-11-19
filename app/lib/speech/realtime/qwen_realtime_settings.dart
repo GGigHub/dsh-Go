@@ -1,4 +1,4 @@
-// 设置 › 语音 › Qwen Realtime: App 直连百炼全双工通话。Key 只存在本机。
+// 设置 › 语音 › Qwen Realtime: 百炼云端或局域网本地网关全双工。Key 只存在本机。
 
 import 'dart:async';
 import 'dart:convert';
@@ -10,12 +10,16 @@ import '../../secrets/secure_storage.dart';
 
 /// Omni Realtime needs a workspace host; keep the public DashScope URL as a
 /// starting point and let settings (or the user) replace it with
-/// `wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime`.
+/// `wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime`
+/// or a LAN gateway `ws://192.168.x.x:8091/v1/realtime`.
 const qwenRealtimeDefaultBase = 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime';
 
 const qwenRealtimeDefaultModel = 'qwen3.8-omni-flash-realtime';
 
 const qwenRealtimeDefaultVoice = 'Tina';
+
+/// Bearer token sent when a LAN gateway has no API key configured.
+const qwenRealtimeLocalBearer = 'local';
 
 /// First-shipped defaults; migrate on load so old installs pick up Omni.
 const qwenRealtimeLegacyDefaultModel = 'qwen-audio-3.1-realtime-flash';
@@ -38,17 +42,38 @@ class QwenRealtimeSettings {
   /// When false, calls stay on the legacy turn-based path even if a key is set.
   final bool enabled;
 
-  bool get ready => enabled && key.trim().isNotEmpty && model.trim().isNotEmpty && base.trim().isNotEmpty;
+  /// LAN / loopback gateway (cleartext `ws://` or private-IP `wss://`).
+  /// Local mode does not require a Bailian `sk-` key.
+  bool get isLocalLan {
+    final uri = Uri.tryParse(base.trim());
+    if (uri == null) return false;
+    if (uri.scheme == 'ws') return true;
+    final host = uri.host.toLowerCase();
+    if (host == 'localhost' || host == '127.0.0.1' || host == '::1') return true;
+    if (host.endsWith('.local')) return true;
+    return _isPrivateIpv4(host);
+  }
+
+  /// Cloud Bailian needs a key; LAN gateway only needs a reachable endpoint.
+  bool get ready {
+    if (!enabled || model.trim().isEmpty || base.trim().isEmpty) return false;
+    if (websocketUri == null) return false;
+    if (isLocalLan) return true;
+    return key.trim().isNotEmpty;
+  }
 
   /// Qwen-Omni Realtime (e.g. qwen3.8-omni-flash-realtime) uses a different
   /// session.update shape and usually a workspace-specific host.
+  /// LAN gateways always use the PCM audio session shape instead.
   bool get isOmniRealtime {
+    if (isLocalLan) return false;
     final m = model.trim().toLowerCase();
     return m.contains('omni') && m.contains('realtime');
   }
 
   /// Workspace id from a dedicated host like `ws-….cn-beijing.maas.aliyuncs.com`.
   String? get workspaceId {
+    if (isLocalLan) return null;
     final host = Uri.tryParse(base.trim())?.host;
     if (host == null || !host.endsWith('.maas.aliyuncs.com')) return null;
     final id = host.split('.').first;
@@ -80,13 +105,39 @@ class QwenRealtimeSettings {
   );
 }
 
+bool _isPrivateIpv4(String host) {
+  final parts = host.split('.');
+  if (parts.length != 4) return false;
+  final nums = <int>[];
+  for (final part in parts) {
+    final n = int.tryParse(part);
+    if (n == null || n < 0 || n > 255) return false;
+    nums.add(n);
+  }
+  final a = nums[0];
+  final b = nums[1];
+  if (a == 10) return true;
+  if (a == 172 && b >= 16 && b <= 31) return true;
+  if (a == 192 && b == 168) return true;
+  return false;
+}
+
 /// Strip copy/paste noise that causes 401 (spaces, newlines, BOM).
 String sanitizeRealtimeKey(String value) =>
     value.trim().replaceAll(RegExp(r'\s+'), '').replaceAll('\uFEFF', '');
 
 /// Soft shape check for Bailian keys (`sk-…`). Returns null when OK.
-String? realtimeKeyShapeHint(String value) {
+/// Skip for empty keys (LAN) or non-`sk-` local tokens.
+String? realtimeKeyShapeHint(String value, {bool localLan = false}) {
   final key = sanitizeRealtimeKey(value);
+  if (localLan) {
+    if (key.isEmpty || key == qwenRealtimeLocalBearer) return null;
+    // Allow any short shared token on LAN; only warn on Bailian-shaped mistakes.
+    if (key.startsWith('sk-') && key.length > 80) {
+      return 'API Key looks too long (len=${key.length}); paste only the sk-… value, not the CSV/URL';
+    }
+    return null;
+  }
   if (key.isEmpty) return 'API Key is empty';
   if (!key.startsWith('sk-')) return 'API Key should start with sk- (re-copy from Bailian console)';
   if (key.length < 20) return 'API Key looks too short (len=${key.length})';

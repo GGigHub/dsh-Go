@@ -19681,28 +19681,29 @@ class L10nEn extends L10n {
 
   @override
   String get speechRealtimeFooter =>
-      'Usually only the API key is needed; Omni defaults are prefilled. Change the endpoint for a workspace host. The key stays on this phone.';
+      'Bailian: set an API key (Omni needs a workspace host). LAN: set ws://HOST:PORT/v1/realtime; key optional. Logs: adb logcat | grep dsh.realtime';
 
   @override
   String get speechRealtimeEnabled => 'Use Realtime calls';
 
   @override
-  String get speechRealtimeEnabledHint => 'When on and a key is set, the composer’s voice call uses full duplex';
+  String get speechRealtimeEnabledHint => 'When on: Bailian needs a key; LAN only needs a reachable endpoint';
 
   @override
-  String get speechRealtimeBaseHelper => 'Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+  String get speechRealtimeBaseHelper =>
+      'LAN e.g. ws://192.168.1.10:8091/v1/realtime; Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
 
   @override
-  String get speechRealtimeModelHelper => 'Default qwen3.8-omni-flash-realtime';
+  String get speechRealtimeModelHelper => 'LAN e.g. minicpm-o-4_5; Bailian default qwen3.8-omni-flash-realtime';
 
   @override
-  String get speechRealtimeVoiceHelper => 'Default Tina';
+  String get speechRealtimeVoiceHelper => 'Default Tina; LAN gateways may ignore';
 
   @override
-  String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud owns turn-taking)';
+  String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud/LAN gateway owns turn-taking)';
 
   @override
-  String get speechRealtimeKeyLabel => 'API key';
+  String get speechRealtimeKeyLabel => 'API key (optional on LAN)';
 
   @override
   String get speechRealtimeBaseLabel => 'Endpoint';
@@ -19718,6 +19719,9 @@ class L10nEn extends L10n {
 
   @override
   String get speechRealtimeVerifyNeedKey => 'Enter an API key first';
+
+  @override
+  String get speechRealtimeVerifyNeedEndpoint => 'Enter a valid endpoint (ws:// or wss://) first';
 
   @override
   String get speechRealtimeVerifyOk => 'Connected — you can start a voice call';

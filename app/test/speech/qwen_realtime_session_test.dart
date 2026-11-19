@@ -113,10 +113,54 @@ void main() {
     await session.close();
   });
 
-  test('settings ready requires key and enabled', () {
+  test('settings ready requires key and enabled for cloud', () {
     expect(const QwenRealtimeSettings().ready, isFalse);
     expect(const QwenRealtimeSettings(key: 'k').ready, isTrue);
     expect(const QwenRealtimeSettings(key: 'k', enabled: false).ready, isFalse);
+  });
+
+  test('LAN endpoint is ready without Bailian key', () {
+    const s = QwenRealtimeSettings(
+      base: 'ws://192.168.1.10:8091/v1/realtime',
+      model: 'minicpm-o-4_5',
+    );
+    expect(s.isLocalLan, isTrue);
+    expect(s.ready, isTrue);
+    expect(s.isOmniRealtime, isFalse);
+    expect(s.workspaceId, isNull);
+    expect(s.websocketUri?.scheme, 'ws');
+    expect(s.websocketUri?.host, '192.168.1.10');
+  });
+
+  test('LAN open sends local bearer and PCM session.update', () async {
+    final fake = _FakeSocket();
+    Map<String, dynamic>? headersSeen;
+    final session = QwenRealtimeSession(
+      connect: (uri, {headers}) async {
+        headersSeen = headers;
+        expect(uri.scheme, 'ws');
+        expect(uri.queryParameters['model'], 'minicpm-o-4_5');
+        return fake;
+      },
+    );
+    const settings = QwenRealtimeSettings(
+      base: 'ws://10.0.0.2:8091/v1/realtime',
+      model: 'minicpm-o-4_5',
+      voice: 'default',
+    );
+    final opening = session.open(settings);
+    await Future<void>.delayed(Duration.zero);
+    expect(headersSeen?['Authorization'], 'Bearer local');
+    expect(headersSeen?.containsKey('X-DashScope-WorkSpace'), isFalse);
+    fake.incoming.add(jsonEncode({'type': 'session.created'}));
+    await Future<void>.delayed(Duration.zero);
+    final update = jsonDecode(fake.sent.single) as Map<String, dynamic>;
+    final body = update['session'] as Map<String, dynamic>;
+    expect(body['input_audio_format'], 'pcm16');
+    expect(body.containsKey('audio'), isTrue);
+    fake.incoming.add(jsonEncode({'type': 'session.updated'}));
+    await opening;
+    await session.close();
   });
 
   test('defaults target Omni Realtime', () {
@@ -124,6 +168,7 @@ void main() {
     expect(s.model, 'qwen3.8-omni-flash-realtime');
     expect(s.voice, 'Tina');
     expect(s.isOmniRealtime, isTrue);
+    expect(s.isLocalLan, isFalse);
   });
 
   test('sanitizeRealtimeKey strips whitespace', () {
@@ -133,5 +178,6 @@ void main() {
   test('realtimeKeyShapeHint flags oversized paste', () {
     expect(realtimeKeyShapeHint('sk-${'a' * 100}'), contains('too long'));
     expect(realtimeKeyShapeHint('sk-shortbutvalidkey123456'), isNull);
+    expect(realtimeKeyShapeHint('', localLan: true), isNull);
   });
 }
