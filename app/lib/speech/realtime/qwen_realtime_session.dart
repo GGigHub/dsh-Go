@@ -95,7 +95,7 @@ class QwenRealtimeSession {
     if (_closed) throw StateError('session closed');
     final uri = settings.websocketUri;
     if (uri == null) throw ArgumentError('invalid realtime endpoint');
-    final key = settings.key.trim();
+    final key = sanitizeRealtimeKey(settings.key);
     if (key.isEmpty) throw ArgumentError('realtime key required');
 
     final headers = <String, dynamic>{'Authorization': 'Bearer $key'};

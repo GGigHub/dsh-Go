@@ -34253,7 +34253,7 @@ abstract class L10n {
   /// No description provided for @speechRealtimeFooter.
   ///
   /// In zh, this message translates to:
-  /// **'填入阿里云百炼 API Key 后，语音通话走云端全双工；Key 只存在这台手机。未配置时仍用原来的轮次通话。'**
+  /// **'一般只需填 API Key；下方已预填 Omni 默认。业务空间专属域名请改接入地址。Key 只存在这台手机。'**
   String get speechRealtimeFooter;
 
   /// No description provided for @speechRealtimeEnabled.
@@ -34271,19 +34271,19 @@ abstract class L10n {
   /// No description provided for @speechRealtimeBaseHelper.
   ///
   /// In zh, this message translates to:
-  /// **'Omni 模型须用业务空间专属域名：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
+  /// **'Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
   String get speechRealtimeBaseHelper;
 
   /// No description provided for @speechRealtimeModelHelper.
   ///
   /// In zh, this message translates to:
-  /// **'例如 qwen3.8-omni-flash-realtime 或 qwen-audio-3.1-realtime-flash'**
+  /// **'默认 qwen3.8-omni-flash-realtime'**
   String get speechRealtimeModelHelper;
 
   /// No description provided for @speechRealtimeVoiceHelper.
   ///
   /// In zh, this message translates to:
-  /// **'Omni 常用 Tina / longanlingxin；Audio 常用 longanqian_v3.1'**
+  /// **'默认 Tina'**
   String get speechRealtimeVoiceHelper;
 
   /// No description provided for @speechRealtimeLegacyHint.
@@ -34315,6 +34315,30 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'音色'**
   String get speechRealtimeVoiceLabel;
+
+  /// No description provided for @speechRealtimeVerify.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证连接'**
+  String get speechRealtimeVerify;
+
+  /// No description provided for @speechRealtimeVerifyNeedKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先填写 API Key'**
+  String get speechRealtimeVerifyNeedKey;
+
+  /// No description provided for @speechRealtimeVerifyOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接成功，可以开始语音通话'**
+  String get speechRealtimeVerifyOk;
+
+  /// No description provided for @speechRealtimeVerifyFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证失败：{error}'**
+  String speechRealtimeVerifyFailed(String error);
 
   /// No description provided for @speechCallHint.
   ///

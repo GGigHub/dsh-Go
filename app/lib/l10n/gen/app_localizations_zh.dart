@@ -18641,7 +18641,7 @@ class L10nZh extends L10n {
   String get speechRealtimeSection => 'Qwen Realtime 全双工';
 
   @override
-  String get speechRealtimeFooter => '填入阿里云百炼 API Key 后，语音通话走云端全双工；Key 只存在这台手机。未配置时仍用原来的轮次通话。';
+  String get speechRealtimeFooter => '一般只需填 API Key；下方已预填 Omni 默认。业务空间专属域名请改接入地址。Key 只存在这台手机。';
 
   @override
   String get speechRealtimeEnabled => '使用 Realtime 通话';
@@ -18650,14 +18650,13 @@ class L10nZh extends L10n {
   String get speechRealtimeEnabledHint => '打开且填了 Key 后，加号里的语音通话走全双工';
 
   @override
-  String get speechRealtimeBaseHelper =>
-      'Omni 模型须用业务空间专属域名：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+  String get speechRealtimeBaseHelper => 'Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
 
   @override
-  String get speechRealtimeModelHelper => '例如 qwen3.8-omni-flash-realtime 或 qwen-audio-3.1-realtime-flash';
+  String get speechRealtimeModelHelper => '默认 qwen3.8-omni-flash-realtime';
 
   @override
-  String get speechRealtimeVoiceHelper => 'Omni 常用 Tina / longanlingxin；Audio 常用 longanqian_v3.1';
+  String get speechRealtimeVoiceHelper => '默认 Tina';
 
   @override
   String get speechRealtimeLegacyHint => 'Realtime 通话由云端接管，此项不适用';
@@ -18673,6 +18672,20 @@ class L10nZh extends L10n {
 
   @override
   String get speechRealtimeVoiceLabel => '音色';
+
+  @override
+  String get speechRealtimeVerify => '验证连接';
+
+  @override
+  String get speechRealtimeVerifyNeedKey => '请先填写 API Key';
+
+  @override
+  String get speechRealtimeVerifyOk => '连接成功，可以开始语音通话';
+
+  @override
+  String speechRealtimeVerifyFailed(String error) {
+    return '验证失败：$error';
+  }
 
   @override
   String get speechCallHint => '（这是语音通话，我说的话由语音识别转成文字。请用简短、口语化的中文回答，不要用 Markdown、列表、表格和代码块。）';

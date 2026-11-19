@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../companion/companion_voice_source.dart';
 import '../../l10n/l10n.dart';
 import '../../speech/realtime/qwen_realtime_settings.dart';
+import '../../speech/realtime/qwen_realtime_verify.dart';
 import '../../speech/speech_audio.dart';
 import '../../speech/speech_settings.dart';
 import '../../state/android_features.dart';
@@ -15,6 +16,7 @@ import '../../state/voice_model_state.dart';
 import '../../state/voice_settings.dart';
 import '../../state/voice_state.dart';
 import '../common/app_dialog.dart';
+import '../common/brief_notice.dart';
 import '../companion/companion_voice_page.dart';
 import '../providers/provider_widgets.dart';
 import '../speech/call/call_backdrop.dart';
@@ -286,6 +288,7 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   Timer? _save;
   bool _filled = false;
   bool _obscure = true;
+  bool _verifying = false;
 
   @override
   void initState() {
@@ -304,7 +307,7 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
 
   QwenRealtimeSettings get _typed => QwenRealtimeSettings(
     base: _base.text.trim(),
-    key: _key.text.trim(),
+    key: sanitizeRealtimeKey(_key.text),
     model: _model.text.trim(),
     voice: _voice.text.trim(),
     enabled: ref.read(qwenRealtimeSettingsProvider).enabled,
@@ -325,6 +328,26 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   void _schedule() {
     _save?.cancel();
     _save = Timer(const Duration(milliseconds: 400), () => unawaited(_store.update(_typed)));
+  }
+
+  Future<void> _verify() async {
+    final l10n = context.l10n;
+    final settings = _typed;
+    if (settings.key.isEmpty) {
+      showBriefNotice(context, l10n.speechRealtimeVerifyNeedKey);
+      return;
+    }
+    setState(() => _verifying = true);
+    await _store.update(settings);
+    final result = await verifyQwenRealtime(settings);
+    if (!mounted) return;
+    setState(() => _verifying = false);
+    switch (result) {
+      case QwenRealtimeVerifyOk():
+        showBriefNotice(context, l10n.speechRealtimeVerifyOk);
+      case QwenRealtimeVerifyFailed(:final message):
+        showBriefNotice(context, l10n.speechRealtimeVerifyFailed(message));
+    }
   }
 
   @override
@@ -357,6 +380,23 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
                 ),
               ),
               onChanged: (_) => _schedule(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 8, SettingsMetrics.inset, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.tonal(
+                key: const ValueKey('speech-realtime-verify'),
+                onPressed: _verifying ? null : () => unawaited(_verify()),
+                child: _verifying
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(l10n.speechRealtimeVerify),
+              ),
             ),
           ),
           Padding(

@@ -19681,7 +19681,7 @@ class L10nEn extends L10n {
 
   @override
   String get speechRealtimeFooter =>
-      'With a DashScope API key, voice calls use cloud full-duplex audio. The key stays on this phone. Without it, calls stay turn-based.';
+      'Usually only the API key is needed; Omni defaults are prefilled. Change the endpoint for a workspace host. The key stays on this phone.';
 
   @override
   String get speechRealtimeEnabled => 'Use Realtime calls';
@@ -19690,14 +19690,13 @@ class L10nEn extends L10n {
   String get speechRealtimeEnabledHint => 'When on and a key is set, the composer’s voice call uses full duplex';
 
   @override
-  String get speechRealtimeBaseHelper =>
-      'Omni models need the workspace host: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+  String get speechRealtimeBaseHelper => 'Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
 
   @override
-  String get speechRealtimeModelHelper => 'e.g. qwen3.8-omni-flash-realtime or qwen-audio-3.1-realtime-flash';
+  String get speechRealtimeModelHelper => 'Default qwen3.8-omni-flash-realtime';
 
   @override
-  String get speechRealtimeVoiceHelper => 'Omni: Tina / longanlingxin; Audio: longanqian_v3.1';
+  String get speechRealtimeVoiceHelper => 'Default Tina';
 
   @override
   String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud owns turn-taking)';
@@ -19713,6 +19712,20 @@ class L10nEn extends L10n {
 
   @override
   String get speechRealtimeVoiceLabel => 'Voice';
+
+  @override
+  String get speechRealtimeVerify => 'Verify connection';
+
+  @override
+  String get speechRealtimeVerifyNeedKey => 'Enter an API key first';
+
+  @override
+  String get speechRealtimeVerifyOk => 'Connected — you can start a voice call';
+
+  @override
+  String speechRealtimeVerifyFailed(String error) {
+    return 'Verification failed: $error';
+  }
 
   @override
   String get speechCallHint =>

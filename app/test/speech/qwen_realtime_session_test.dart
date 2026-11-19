@@ -118,4 +118,15 @@ void main() {
     expect(const QwenRealtimeSettings(key: 'k').ready, isTrue);
     expect(const QwenRealtimeSettings(key: 'k', enabled: false).ready, isFalse);
   });
+
+  test('defaults target Omni Realtime', () {
+    const s = QwenRealtimeSettings();
+    expect(s.model, 'qwen3.8-omni-flash-realtime');
+    expect(s.voice, 'Tina');
+    expect(s.isOmniRealtime, isTrue);
+  });
+
+  test('sanitizeRealtimeKey strips whitespace', () {
+    expect(sanitizeRealtimeKey(' sk-abc \n'), 'sk-abc');
+  });
 }
