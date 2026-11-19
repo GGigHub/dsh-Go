@@ -34271,19 +34271,19 @@ abstract class L10n {
   /// No description provided for @speechRealtimeBaseHelper.
   ///
   /// In zh, this message translates to:
-  /// **'WebSocket 地址，默认可不改；业务空间专属域名时再换'**
+  /// **'Omni 模型须用业务空间专属域名：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
   String get speechRealtimeBaseHelper;
 
   /// No description provided for @speechRealtimeModelHelper.
   ///
   /// In zh, this message translates to:
-  /// **'例如 qwen-audio-3.1-realtime-flash'**
+  /// **'例如 qwen3.8-omni-flash-realtime 或 qwen-audio-3.1-realtime-flash'**
   String get speechRealtimeModelHelper;
 
   /// No description provided for @speechRealtimeVoiceHelper.
   ///
   /// In zh, this message translates to:
-  /// **'例如 longanqian_v3.1'**
+  /// **'Omni 常用 Tina / longanlingxin；Audio 常用 longanqian_v3.1'**
   String get speechRealtimeVoiceHelper;
 
   /// No description provided for @speechRealtimeLegacyHint.

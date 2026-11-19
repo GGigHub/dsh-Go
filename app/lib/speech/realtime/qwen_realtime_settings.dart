@@ -35,6 +35,21 @@ class QwenRealtimeSettings {
 
   bool get ready => enabled && key.trim().isNotEmpty && model.trim().isNotEmpty && base.trim().isNotEmpty;
 
+  /// Qwen-Omni Realtime (e.g. qwen3.8-omni-flash-realtime) uses a different
+  /// session.update shape and usually a workspace-specific host.
+  bool get isOmniRealtime {
+    final m = model.trim().toLowerCase();
+    return m.contains('omni') && m.contains('realtime');
+  }
+
+  /// Workspace id from a dedicated host like `ws-….cn-beijing.maas.aliyuncs.com`.
+  String? get workspaceId {
+    final host = Uri.tryParse(base.trim())?.host;
+    if (host == null || !host.endsWith('.maas.aliyuncs.com')) return null;
+    final id = host.split('.').first;
+    return id.startsWith('ws-') ? id : null;
+  }
+
   Uri? get websocketUri {
     final trimmed = base.trim();
     if (trimmed.isEmpty || model.trim().isEmpty) return null;

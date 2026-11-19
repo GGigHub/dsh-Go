@@ -36,23 +36,30 @@ class _FakeSocket implements WebSocket {
 }
 
 void main() {
-  test('open sends session.update with pcm rates and appends base64 audio', () async {
+  test('open waits for session.created then sends audio-model session.update', () async {
     final fake = _FakeSocket();
     final session = QwenRealtimeSession(
       connect: (uri, {headers}) async {
         expect(uri.queryParameters['model'], 'qwen-audio-3.1-realtime-flash');
         expect(headers?['Authorization'], 'Bearer test-key');
+        expect(headers?.containsKey('X-DashScope-WorkSpace'), isFalse);
         return fake;
       },
     );
     final events = session.events.toList();
-    await session.open(
+    final opening = session.open(
       const QwenRealtimeSettings(key: 'test-key', model: 'qwen-audio-3.1-realtime-flash'),
     );
+    await Future<void>.delayed(Duration.zero);
+    expect(fake.sent, isEmpty);
+    fake.incoming.add(jsonEncode({'type': 'session.created'}));
+    await Future<void>.delayed(Duration.zero);
     expect(fake.sent, isNotEmpty);
     final update = jsonDecode(fake.sent.first) as Map<String, dynamic>;
     expect(update['type'], 'session.update');
+    expect((update['session'] as Map)['input_audio_format'], 'pcm16');
     fake.incoming.add(jsonEncode({'type': 'session.updated'}));
+    await opening;
     session.appendPcm(Uint8List.fromList([1, 2, 3, 4]));
     final append = jsonDecode(fake.sent.last) as Map<String, dynamic>;
     expect(append['type'], 'input_audio_buffer.append');
@@ -69,6 +76,41 @@ void main() {
     final seen = await events;
     expect(seen.whereType<QwenRealtimeReady>(), isNotEmpty);
     expect(seen.whereType<QwenRealtimeAudioDelta>().single.pcm, [9, 8, 7, 6]);
+  });
+
+  test('omni model uses slim session.update and workspace header', () async {
+    final fake = _FakeSocket();
+    Map<String, dynamic>? headersSeen;
+    final session = QwenRealtimeSession(
+      connect: (uri, {headers}) async {
+        headersSeen = headers;
+        expect(uri.queryParameters['model'], 'qwen3.8-omni-flash-realtime');
+        return fake;
+      },
+    );
+    const settings = QwenRealtimeSettings(
+      base: 'wss://ws-17piqy1lazm81wox.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime',
+      key: 'test-key',
+      model: 'qwen3.8-omni-flash-realtime',
+      voice: 'Tina',
+    );
+    expect(settings.isOmniRealtime, isTrue);
+    expect(settings.workspaceId, 'ws-17piqy1lazm81wox');
+    final opening = session.open(settings);
+    await Future<void>.delayed(Duration.zero);
+    expect(headersSeen?['X-DashScope-WorkSpace'], 'ws-17piqy1lazm81wox');
+    fake.incoming.add(jsonEncode({'type': 'session.created'}));
+    await Future<void>.delayed(Duration.zero);
+    final update = jsonDecode(fake.sent.single) as Map<String, dynamic>;
+    final sessionBody = update['session'] as Map<String, dynamic>;
+    expect(sessionBody['voice'], 'Tina');
+    expect(sessionBody['modalities'], ['text', 'audio']);
+    expect(sessionBody['turn_detection'], {'type': 'server_vad'});
+    expect(sessionBody.containsKey('input_audio_format'), isFalse);
+    expect(sessionBody.containsKey('audio'), isFalse);
+    fake.incoming.add(jsonEncode({'type': 'session.updated'}));
+    await opening;
+    await session.close();
   });
 
   test('settings ready requires key and enabled', () {

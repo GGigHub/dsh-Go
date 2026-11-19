@@ -102,7 +102,9 @@ class RealtimeCallController extends CallController {
     try {
       await session.open(settings);
     } catch (error) {
-      _error = error;
+      _error = error is TimeoutException || error is StateError || error is ArgumentError
+          ? error.toString()
+          : error;
       _end(CallEnd.failed);
       return;
     }
@@ -209,7 +211,7 @@ class RealtimeCallController extends CallController {
       case QwenRealtimeError(:final message):
         _error = message;
         notifyListeners();
-        if (_phase == CallPhase.starting) _end(CallEnd.failed);
+        _end(CallEnd.failed);
       case QwenRealtimeClosed():
         if (_phase != CallPhase.ended) _end(CallEnd.failed);
     }

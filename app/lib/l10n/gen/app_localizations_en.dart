@@ -19690,13 +19690,14 @@ class L10nEn extends L10n {
   String get speechRealtimeEnabledHint => 'When on and a key is set, the composer’s voice call uses full duplex';
 
   @override
-  String get speechRealtimeBaseHelper => 'WebSocket URL; leave the default unless you use a workspace host';
+  String get speechRealtimeBaseHelper =>
+      'Omni models need the workspace host: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
 
   @override
-  String get speechRealtimeModelHelper => 'e.g. qwen-audio-3.1-realtime-flash';
+  String get speechRealtimeModelHelper => 'e.g. qwen3.8-omni-flash-realtime or qwen-audio-3.1-realtime-flash';
 
   @override
-  String get speechRealtimeVoiceHelper => 'e.g. longanqian_v3.1';
+  String get speechRealtimeVoiceHelper => 'Omni: Tina / longanlingxin; Audio: longanqian_v3.1';
 
   @override
   String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud owns turn-taking)';

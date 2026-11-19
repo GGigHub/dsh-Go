@@ -18650,13 +18650,14 @@ class L10nZh extends L10n {
   String get speechRealtimeEnabledHint => '打开且填了 Key 后，加号里的语音通话走全双工';
 
   @override
-  String get speechRealtimeBaseHelper => 'WebSocket 地址，默认可不改；业务空间专属域名时再换';
+  String get speechRealtimeBaseHelper =>
+      'Omni 模型须用业务空间专属域名：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
 
   @override
-  String get speechRealtimeModelHelper => '例如 qwen-audio-3.1-realtime-flash';
+  String get speechRealtimeModelHelper => '例如 qwen3.8-omni-flash-realtime 或 qwen-audio-3.1-realtime-flash';
 
   @override
-  String get speechRealtimeVoiceHelper => '例如 longanqian_v3.1';
+  String get speechRealtimeVoiceHelper => 'Omni 常用 Tina / longanlingxin；Audio 常用 longanqian_v3.1';
 
   @override
   String get speechRealtimeLegacyHint => 'Realtime 通话由云端接管，此项不适用';

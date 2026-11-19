@@ -362,6 +362,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     final call = _callOrNull;
     if (call == null) return (l10n.speechCallStarting, true);
     if (call.phase == CallPhase.ended) {
+      final failedDetail = call.error;
       return (
         switch (call.ended) {
           CallEnd.permission => l10n.speechCallEndPermission,
@@ -375,7 +376,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                       ? l10n.speechCallEndNoRecognizerSignedIn
                       : l10n.speechCallEndNoRecognizer),
           CallEnd.background => l10n.speechCallEndBackground,
-          CallEnd.failed => l10n.speechCallEndFailed,
+          // Realtime path often fails on WebSocket/session, not the mic —
+          // surface the server/client detail so "录音出错" is not a dead end.
+          CallEnd.failed => failedDetail == null || '$failedDetail'.trim().isEmpty
+              ? l10n.speechCallEndFailed
+              : '${l10n.speechCallEndFailed}: $failedDetail',
           CallEnd.hungUp || null => l10n.speechCallEnded,
         },
         false,

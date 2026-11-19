@@ -1,4 +1,4 @@
-// Qwen-Audio Realtime WebSocket: App ↔ DashScope full-duplex audio.
+// Qwen-Audio / Qwen-Omni Realtime WebSocket: App ↔ DashScope full-duplex audio.
 
 import 'dart:async';
 import 'dart:convert';
@@ -83,6 +83,8 @@ class QwenRealtimeSession {
   WebSocket? _ws;
   int _event = 0;
   bool _closed = false;
+  Map<String, Object?>? _pendingUpdate;
+  Completer<void>? _updated;
 
   Stream<QwenRealtimeEvent> get events => _events.stream;
 
@@ -94,38 +96,69 @@ class QwenRealtimeSession {
     if (uri == null) throw ArgumentError('invalid realtime endpoint');
     final key = settings.key.trim();
     if (key.isEmpty) throw ArgumentError('realtime key required');
-    final ws = await _connect(uri, headers: {'Authorization': 'Bearer $key'});
+
+    final headers = <String, dynamic>{'Authorization': 'Bearer $key'};
+    final workspace = settings.workspaceId;
+    if (workspace != null) headers['X-DashScope-WorkSpace'] = workspace;
+
+    final ws = await _connect(uri, headers: headers);
     if (_closed) {
       await ws.close();
       return;
     }
     _ws = ws;
-    ws.listen(_onMessage, onError: (_) => _fail('connection error'), onDone: _onDone);
-    _send({
+    final updated = _updated = Completer<void>();
+    _pendingUpdate = {
       'type': 'session.update',
-      'session': {
+      'session': _sessionConfig(settings),
+    };
+    ws.listen(_onMessage, onError: (_) => _fail('connection error'), onDone: _onDone);
+
+    try {
+      await updated.future.timeout(const Duration(seconds: 20));
+    } on TimeoutException {
+      await close();
+      throw TimeoutException('realtime session.update timed out');
+    }
+  }
+
+  /// Official field layout differs by model family — do not mix levels.
+  static Map<String, Object?> _sessionConfig(QwenRealtimeSettings settings) {
+    final voice = settings.voice.trim().isEmpty
+        ? (settings.isOmniRealtime ? 'Tina' : qwenRealtimeDefaultVoice)
+        : settings.voice.trim();
+    if (settings.isOmniRealtime) {
+      // qwen3.8-omni-flash-realtime: modalities + voice + server_vad only.
+      return {
         'modalities': ['text', 'audio'],
-        'voice': settings.voice.trim().isEmpty ? qwenRealtimeDefaultVoice : settings.voice.trim(),
+        'voice': voice,
         'instructions': '你是语音助手。用简短、口语化的中文回答，不要用 Markdown、列表或代码块。',
-        'input_audio_format': 'pcm16',
-        'output_audio_format': 'pcm16',
-        'input_audio_transcription': {'model': 'qwen3-asr-flash-realtime'},
-        'turn_detection': {
-          'type': 'server_vad',
-          'threshold': 0.2,
-          'prefix_padding_ms': 300,
-          'silence_duration_ms': 600,
+        'turn_detection': {'type': 'server_vad'},
+      };
+    }
+    // qwen-audio-*-realtime-* and older omni shapes.
+    return {
+      'modalities': ['text', 'audio'],
+      'voice': voice,
+      'instructions': '你是语音助手。用简短、口语化的中文回答，不要用 Markdown、列表或代码块。',
+      'input_audio_format': 'pcm16',
+      'output_audio_format': 'pcm16',
+      'input_audio_transcription': {'model': 'qwen3-asr-flash-realtime'},
+      'turn_detection': {
+        'type': 'server_vad',
+        'threshold': 0.2,
+        'prefix_padding_ms': 300,
+        'silence_duration_ms': 600,
+      },
+      'audio': {
+        'input': {
+          'format': {'type': 'pcm', 'sample_rate': 16000},
         },
-        'audio': {
-          'input': {
-            'format': {'type': 'pcm', 'sample_rate': 16000},
-          },
-          'output': {
-            'format': {'type': 'pcm', 'sample_rate': 24000},
-          },
+        'output': {
+          'format': {'type': 'pcm', 'sample_rate': 24000},
         },
       },
-    });
+    };
   }
 
   void appendPcm(Uint8List pcm) {
@@ -143,6 +176,12 @@ class QwenRealtimeSession {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    final waiting = _updated;
+    _updated = null;
+    _pendingUpdate = null;
+    if (waiting != null && !waiting.isCompleted) {
+      waiting.completeError(StateError('session closed'));
+    }
     final ws = _ws;
     _ws = null;
     try {
@@ -184,7 +223,14 @@ class QwenRealtimeSession {
     final type = json['type'];
     if (type is! String) return;
     switch (type) {
-      case 'session.created' || 'session.updated':
+      case 'session.created':
+        final pending = _pendingUpdate;
+        _pendingUpdate = null;
+        if (pending != null) _send(pending);
+      case 'session.updated':
+        final waiting = _updated;
+        _updated = null;
+        if (waiting != null && !waiting.isCompleted) waiting.complete();
         _emit(const QwenRealtimeReady());
       case 'input_audio_buffer.speech_started':
         _emit(const QwenRealtimeSpeechStarted());
@@ -221,7 +267,7 @@ class QwenRealtimeSession {
       case 'error':
         final err = json['error'];
         final message = err is Map ? '${err['message'] ?? err['code'] ?? err}' : '$err';
-        _emit(QwenRealtimeError(message.isEmpty ? 'realtime error' : message));
+        _fail(message.isEmpty ? 'realtime error' : message);
       default:
         break;
     }
@@ -244,6 +290,8 @@ class QwenRealtimeSession {
 
   void _fail(String message) {
     if (_closed) return;
+    final waiting = _updated;
+    if (waiting != null && !waiting.isCompleted) waiting.completeError(StateError(message));
     _emit(QwenRealtimeError(message));
     unawaited(close());
   }
