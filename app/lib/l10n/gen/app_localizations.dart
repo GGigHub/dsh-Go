@@ -34205,7 +34205,7 @@ abstract class L10n {
   /// No description provided for @speechCallFooter.
   ///
   /// In zh, this message translates to:
-  /// **'通话时说完一句停一下，就会发出去；回答边写边读。'**
+  /// **'通话时说完一句停一下，就会发出去；回答边写边读。配置了 Qwen Realtime 后改为全双工云端通话。'**
   String get speechCallFooter;
 
   /// No description provided for @speechCallBargeIn.
@@ -34243,6 +34243,78 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'接上耳机时总用耳机'**
   String get speechCallSpeakerHint;
+
+  /// No description provided for @speechRealtimeSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'Qwen Realtime 全双工'**
+  String get speechRealtimeSection;
+
+  /// No description provided for @speechRealtimeFooter.
+  ///
+  /// In zh, this message translates to:
+  /// **'填入阿里云百炼 API Key 后，语音通话走云端全双工；Key 只存在这台手机。未配置时仍用原来的轮次通话。'**
+  String get speechRealtimeFooter;
+
+  /// No description provided for @speechRealtimeEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用 Realtime 通话'**
+  String get speechRealtimeEnabled;
+
+  /// No description provided for @speechRealtimeEnabledHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开且填了 Key 后，加号里的语音通话走全双工'**
+  String get speechRealtimeEnabledHint;
+
+  /// No description provided for @speechRealtimeBaseHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'WebSocket 地址，默认可不改；业务空间专属域名时再换'**
+  String get speechRealtimeBaseHelper;
+
+  /// No description provided for @speechRealtimeModelHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如 qwen-audio-3.1-realtime-flash'**
+  String get speechRealtimeModelHelper;
+
+  /// No description provided for @speechRealtimeVoiceHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如 longanqian_v3.1'**
+  String get speechRealtimeVoiceHelper;
+
+  /// No description provided for @speechRealtimeLegacyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'Realtime 通话由云端接管，此项不适用'**
+  String get speechRealtimeLegacyHint;
+
+  /// No description provided for @speechRealtimeKeyLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key'**
+  String get speechRealtimeKeyLabel;
+
+  /// No description provided for @speechRealtimeBaseLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'接入地址'**
+  String get speechRealtimeBaseLabel;
+
+  /// No description provided for @speechRealtimeModelLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get speechRealtimeModelLabel;
+
+  /// No description provided for @speechRealtimeVoiceLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'音色'**
+  String get speechRealtimeVoiceLabel;
 
   /// No description provided for @speechCallHint.
   ///

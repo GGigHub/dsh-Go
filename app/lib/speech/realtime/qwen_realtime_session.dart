@@ -1,0 +1,254 @@
+// Qwen-Audio Realtime WebSocket: App ↔ DashScope full-duplex audio.
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'qwen_realtime_settings.dart';
+
+sealed class QwenRealtimeEvent {
+  const QwenRealtimeEvent();
+}
+
+final class QwenRealtimeReady extends QwenRealtimeEvent {
+  const QwenRealtimeReady();
+}
+
+final class QwenRealtimeSpeechStarted extends QwenRealtimeEvent {
+  const QwenRealtimeSpeechStarted();
+}
+
+final class QwenRealtimeSpeechStopped extends QwenRealtimeEvent {
+  const QwenRealtimeSpeechStopped();
+}
+
+final class QwenRealtimeInputDelta extends QwenRealtimeEvent {
+  const QwenRealtimeInputDelta(this.text);
+  final String text;
+}
+
+final class QwenRealtimeInputFinal extends QwenRealtimeEvent {
+  const QwenRealtimeInputFinal(this.text);
+  final String text;
+}
+
+final class QwenRealtimeOutputDelta extends QwenRealtimeEvent {
+  const QwenRealtimeOutputDelta(this.text);
+  final String text;
+}
+
+final class QwenRealtimeOutputFinal extends QwenRealtimeEvent {
+  const QwenRealtimeOutputFinal(this.text);
+  final String text;
+}
+
+final class QwenRealtimeAudioDelta extends QwenRealtimeEvent {
+  const QwenRealtimeAudioDelta(this.pcm, {required this.responseId});
+  final Uint8List pcm;
+  final String responseId;
+}
+
+final class QwenRealtimeResponseStarted extends QwenRealtimeEvent {
+  const QwenRealtimeResponseStarted(this.responseId);
+  final String responseId;
+}
+
+final class QwenRealtimeResponseDone extends QwenRealtimeEvent {
+  const QwenRealtimeResponseDone(this.responseId);
+  final String responseId;
+}
+
+final class QwenRealtimeCleared extends QwenRealtimeEvent {
+  const QwenRealtimeCleared();
+}
+
+final class QwenRealtimeError extends QwenRealtimeEvent {
+  const QwenRealtimeError(this.message);
+  final String message;
+}
+
+final class QwenRealtimeClosed extends QwenRealtimeEvent {
+  const QwenRealtimeClosed();
+}
+
+/// One DashScope realtime session. Caller owns mic/playback.
+class QwenRealtimeSession {
+  QwenRealtimeSession({
+    Future<WebSocket> Function(Uri uri, {Map<String, dynamic>? headers})? connect,
+  }) : _connect = connect ?? ((uri, {headers}) => WebSocket.connect(uri.toString(), headers: headers));
+
+  final Future<WebSocket> Function(Uri uri, {Map<String, dynamic>? headers}) _connect;
+  final _events = StreamController<QwenRealtimeEvent>.broadcast();
+  WebSocket? _ws;
+  int _event = 0;
+  bool _closed = false;
+
+  Stream<QwenRealtimeEvent> get events => _events.stream;
+
+  bool get isOpen => _ws != null && !_closed;
+
+  Future<void> open(QwenRealtimeSettings settings) async {
+    if (_closed) throw StateError('session closed');
+    final uri = settings.websocketUri;
+    if (uri == null) throw ArgumentError('invalid realtime endpoint');
+    final key = settings.key.trim();
+    if (key.isEmpty) throw ArgumentError('realtime key required');
+    final ws = await _connect(uri, headers: {'Authorization': 'Bearer $key'});
+    if (_closed) {
+      await ws.close();
+      return;
+    }
+    _ws = ws;
+    ws.listen(_onMessage, onError: (_) => _fail('connection error'), onDone: _onDone);
+    _send({
+      'type': 'session.update',
+      'session': {
+        'modalities': ['text', 'audio'],
+        'voice': settings.voice.trim().isEmpty ? qwenRealtimeDefaultVoice : settings.voice.trim(),
+        'instructions': '你是语音助手。用简短、口语化的中文回答，不要用 Markdown、列表或代码块。',
+        'input_audio_format': 'pcm16',
+        'output_audio_format': 'pcm16',
+        'input_audio_transcription': {'model': 'qwen3-asr-flash-realtime'},
+        'turn_detection': {
+          'type': 'server_vad',
+          'threshold': 0.2,
+          'prefix_padding_ms': 300,
+          'silence_duration_ms': 600,
+        },
+        'audio': {
+          'input': {
+            'format': {'type': 'pcm', 'sample_rate': 16000},
+          },
+          'output': {
+            'format': {'type': 'pcm', 'sample_rate': 24000},
+          },
+        },
+      },
+    });
+  }
+
+  void appendPcm(Uint8List pcm) {
+    if (pcm.isEmpty || _ws == null || _closed) return;
+    _send({'type': 'input_audio_buffer.append', 'audio': base64Encode(pcm)});
+  }
+
+  void cancelResponse() => _send({'type': 'response.cancel'});
+
+  void interrupt() {
+    cancelResponse();
+    _emit(const QwenRealtimeCleared());
+  }
+
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    final ws = _ws;
+    _ws = null;
+    try {
+      await ws?.close();
+    } on Object {
+      // Already gone.
+    }
+    if (!_events.isClosed) {
+      _events.add(const QwenRealtimeClosed());
+      await _events.close();
+    }
+  }
+
+  void _send(Map<String, Object?> event) {
+    final ws = _ws;
+    if (ws == null || _closed) return;
+    event.putIfAbsent('event_id', () => 'event_${++_event}');
+    try {
+      ws.add(jsonEncode(event));
+    } on Object {
+      _fail('send failed');
+    }
+  }
+
+  void _onMessage(dynamic raw) {
+    if (_closed) return;
+    Map<String, dynamic>? json;
+    try {
+      final decoded = jsonDecode(raw is String ? raw : utf8.decode(raw as List<int>));
+      if (decoded is Map<String, dynamic>) {
+        json = decoded;
+      } else if (decoded is Map) {
+        json = decoded.map((k, v) => MapEntry('$k', v));
+      }
+    } on Object {
+      return;
+    }
+    if (json == null) return;
+    final type = json['type'];
+    if (type is! String) return;
+    switch (type) {
+      case 'session.created' || 'session.updated':
+        _emit(const QwenRealtimeReady());
+      case 'input_audio_buffer.speech_started':
+        _emit(const QwenRealtimeSpeechStarted());
+      case 'input_audio_buffer.speech_stopped':
+        _emit(const QwenRealtimeSpeechStopped());
+      case 'conversation.item.input_audio_transcription.delta':
+        final delta = json['delta'];
+        if (delta is String && delta.isNotEmpty) _emit(QwenRealtimeInputDelta(delta));
+      case 'conversation.item.input_audio_transcription.completed':
+        final text = json['transcript'] ?? json['text'];
+        if (text is String) _emit(QwenRealtimeInputFinal(text));
+      case 'response.created':
+        final id = _responseId(json);
+        if (id != null) _emit(QwenRealtimeResponseStarted(id));
+      case 'response.audio_transcript.delta' || 'response.text.delta':
+        final delta = json['delta'];
+        if (delta is String && delta.isNotEmpty) _emit(QwenRealtimeOutputDelta(delta));
+      case 'response.audio_transcript.done' || 'response.text.done':
+        final text = json['transcript'] ?? json['text'];
+        if (text is String) _emit(QwenRealtimeOutputFinal(text));
+      case 'response.audio.delta':
+        final delta = json['delta'];
+        final id = _responseId(json) ?? 'audio';
+        if (delta is String && delta.isNotEmpty) {
+          try {
+            _emit(QwenRealtimeAudioDelta(base64Decode(delta), responseId: id));
+          } on Object {
+            // Bad chunk: skip.
+          }
+        }
+      case 'response.done' || 'response.audio.done':
+        final id = _responseId(json) ?? '';
+        _emit(QwenRealtimeResponseDone(id));
+      case 'error':
+        final err = json['error'];
+        final message = err is Map ? '${err['message'] ?? err['code'] ?? err}' : '$err';
+        _emit(QwenRealtimeError(message.isEmpty ? 'realtime error' : message));
+      default:
+        break;
+    }
+  }
+
+  String? _responseId(Map<String, dynamic> json) {
+    final direct = json['response_id'];
+    if (direct is String && direct.isNotEmpty) return direct;
+    final response = json['response'];
+    if (response is Map && response['id'] is String) return response['id'] as String;
+    final id = json['item_id'];
+    if (id is String && id.isNotEmpty) return id;
+    return null;
+  }
+
+  void _onDone() {
+    _ws = null;
+    if (!_closed) _fail('connection closed');
+  }
+
+  void _fail(String message) {
+    if (_closed) return;
+    _emit(QwenRealtimeError(message));
+    unawaited(close());
+  }
+
+  void _emit(QwenRealtimeEvent event) {
+    if (!_events.isClosed) _events.add(event);
+  }
+}

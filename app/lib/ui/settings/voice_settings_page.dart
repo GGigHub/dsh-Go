@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../companion/companion_voice_source.dart';
 import '../../l10n/l10n.dart';
+import '../../speech/realtime/qwen_realtime_settings.dart';
 import '../../speech/speech_audio.dart';
 import '../../speech/speech_settings.dart';
 import '../../state/android_features.dart';
@@ -202,58 +203,199 @@ class _VoiceSettingsPageState extends ConsumerState<VoiceSettingsPage> {
             // HarmonyOS captions use its own recognizer: nothing to download.
             children: [ohos ? const SystemAsrCard() : const StreamingAsrModelCard()],
           ),
-        SettingsSection(
-          title: l10n.speechCallSection,
-          footer: Text(l10n.speechCallFooter),
-          children: [
-            SettingsTile(
-              key: const ValueKey('speech-call-backdrop'),
-              title: l10n.speechBackdropTitle,
-              value: Text(switch (call.backdrop) {
-                CallBackdrop.sea => l10n.speechBackdropSea,
-                CallBackdrop.image => l10n.speechBackdropImage,
-                CallBackdrop.companion => l10n.speechBackdropCompanion,
-              }),
-              onTap: () => unawaited(showCallBackdropSheet(context)),
-            ),
-            SettingsSwitchTile(
-              key: const ValueKey('speech-call-barge-in'),
-              title: l10n.speechCallBargeIn,
-              subtitle: l10n.speechCallBargeInHint,
-              value: call.bargeIn,
-              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(bargeIn: on))),
-            ),
-            SettingsSegmentTile<CallPause>(
-              key: const ValueKey('speech-call-pause'),
-              title: l10n.speechCallPause,
-              subtitle: l10n.speechCallPauseHint,
-              segments: callPauseSegments(l10n),
-              selected: call.pause,
-              onChanged: (pause) => unawaited(calls.edit((saved) => saved.copyWith(pause: pause))),
-            ),
-            SettingsSwitchTile(
-              key: const ValueKey('speech-call-spoken'),
-              title: l10n.speechCallSpoken,
-              subtitle: l10n.speechCallSpokenHint,
-              value: call.spoken,
-              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(spoken: on))),
-            ),
-            SettingsSwitchTile(
-              key: const ValueKey('speech-call-speaker'),
-              title: l10n.speechCallSpeaker,
-              subtitle: l10n.speechCallSpeakerHint,
-              value: call.speaker,
-              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(speaker: on))),
-            ),
-            SettingsSwitchTile(
-              key: const ValueKey('speech-call-cue'),
-              title: l10n.speechCallCue,
-              subtitle: l10n.speechCallCueHint,
-              value: call.cue,
-              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(cue: on))),
-            ),
-          ],
+        const _QwenRealtimeForm(),
+        Builder(
+          builder: (context) {
+            final realtime = ref.watch(qwenRealtimeSettingsProvider).ready;
+            return SettingsSection(
+              title: l10n.speechCallSection,
+              footer: Text(l10n.speechCallFooter),
+              children: [
+                SettingsTile(
+                  key: const ValueKey('speech-call-backdrop'),
+                  title: l10n.speechBackdropTitle,
+                  value: Text(switch (call.backdrop) {
+                    CallBackdrop.sea => l10n.speechBackdropSea,
+                    CallBackdrop.image => l10n.speechBackdropImage,
+                    CallBackdrop.companion => l10n.speechBackdropCompanion,
+                  }),
+                  onTap: () => unawaited(showCallBackdropSheet(context, realtime: realtime)),
+                ),
+                SettingsSwitchTile(
+                  key: const ValueKey('speech-call-barge-in'),
+                  title: l10n.speechCallBargeIn,
+                  subtitle: l10n.speechCallBargeInHint,
+                  value: call.bargeIn,
+                  onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(bargeIn: on))),
+                ),
+                SettingsSegmentTile<CallPause>(
+                  key: const ValueKey('speech-call-pause'),
+                  title: l10n.speechCallPause,
+                  subtitle: realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallPauseHint,
+                  segments: callPauseSegments(l10n),
+                  selected: call.pause,
+                  struck: realtime,
+                  onChanged: realtime ? null : (pause) => unawaited(calls.edit((saved) => saved.copyWith(pause: pause))),
+                ),
+                SettingsSwitchTile(
+                  key: const ValueKey('speech-call-spoken'),
+                  title: l10n.speechCallSpoken,
+                  subtitle: realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallSpokenHint,
+                  value: call.spoken,
+                  struck: realtime,
+                  onChanged: realtime ? null : (on) => unawaited(calls.edit((saved) => saved.copyWith(spoken: on))),
+                ),
+                SettingsSwitchTile(
+                  key: const ValueKey('speech-call-speaker'),
+                  title: l10n.speechCallSpeaker,
+                  subtitle: l10n.speechCallSpeakerHint,
+                  value: call.speaker,
+                  onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(speaker: on))),
+                ),
+                SettingsSwitchTile(
+                  key: const ValueKey('speech-call-cue'),
+                  title: l10n.speechCallCue,
+                  subtitle: realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallCueHint,
+                  value: call.cue,
+                  struck: realtime,
+                  onChanged: realtime ? null : (on) => unawaited(calls.edit((saved) => saved.copyWith(cue: on))),
+                ),
+              ],
+            );
+          },
         ),
+      ],
+    );
+  }
+}
+
+/// DashScope Qwen-Audio Realtime credentials for full-duplex calls.
+class _QwenRealtimeForm extends ConsumerStatefulWidget {
+  const _QwenRealtimeForm();
+
+  @override
+  ConsumerState<_QwenRealtimeForm> createState() => _QwenRealtimeFormState();
+}
+
+class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
+  final _base = TextEditingController();
+  final _key = TextEditingController();
+  final _model = TextEditingController();
+  final _voice = TextEditingController();
+  late final QwenRealtimeSettingsController _store = ref.read(qwenRealtimeSettingsProvider.notifier);
+  Timer? _save;
+  bool _filled = false;
+  bool _obscure = true;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(
+      _store.ready().then((s) {
+        if (!mounted) return;
+        _base.text = s.base;
+        _key.text = s.key;
+        _model.text = s.model;
+        _voice.text = s.voice;
+        setState(() => _filled = true);
+      }),
+    );
+  }
+
+  QwenRealtimeSettings get _typed => QwenRealtimeSettings(
+    base: _base.text.trim(),
+    key: _key.text.trim(),
+    model: _model.text.trim(),
+    voice: _voice.text.trim(),
+    enabled: ref.read(qwenRealtimeSettingsProvider).enabled,
+  );
+
+  @override
+  void dispose() {
+    final pending = _save?.isActive ?? false;
+    _save?.cancel();
+    if (pending) unawaited(_store.update(_typed));
+    _base.dispose();
+    _key.dispose();
+    _model.dispose();
+    _voice.dispose();
+    super.dispose();
+  }
+
+  void _schedule() {
+    _save?.cancel();
+    _save = Timer(const Duration(milliseconds: 400), () => unawaited(_store.update(_typed)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final enabled = ref.watch(qwenRealtimeSettingsProvider.select((s) => s.enabled));
+    return SettingsSection(
+      title: l10n.speechRealtimeSection,
+      footer: Text(l10n.speechRealtimeFooter),
+      children: [
+        SettingsSwitchTile(
+          key: const ValueKey('speech-realtime-enabled'),
+          title: l10n.speechRealtimeEnabled,
+          subtitle: l10n.speechRealtimeEnabledHint,
+          value: enabled,
+          onChanged: (on) => unawaited(_store.update(_typed.copyWith(enabled: on))),
+        ),
+        if (_filled) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 8, SettingsMetrics.inset, 4),
+            child: TextField(
+              key: const ValueKey('speech-realtime-key'),
+              controller: _key,
+              obscureText: _obscure,
+              decoration: InputDecoration(
+                labelText: l10n.speechRealtimeKeyLabel,
+                suffixIcon: IconButton(
+                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                  onPressed: () => setState(() => _obscure = !_obscure),
+                ),
+              ),
+              onChanged: (_) => _schedule(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 4),
+            child: TextField(
+              key: const ValueKey('speech-realtime-base'),
+              controller: _base,
+              decoration: InputDecoration(
+                labelText: l10n.speechRealtimeBaseLabel,
+                helperText: l10n.speechRealtimeBaseHelper,
+              ),
+              onChanged: (_) => _schedule(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 4),
+            child: TextField(
+              key: const ValueKey('speech-realtime-model'),
+              controller: _model,
+              decoration: InputDecoration(
+                labelText: l10n.speechRealtimeModelLabel,
+                helperText: l10n.speechRealtimeModelHelper,
+              ),
+              onChanged: (_) => _schedule(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 12),
+            child: TextField(
+              key: const ValueKey('speech-realtime-voice'),
+              controller: _voice,
+              decoration: InputDecoration(
+                labelText: l10n.speechRealtimeVoiceLabel,
+                helperText: l10n.speechRealtimeVoiceHelper,
+              ),
+              onChanged: (_) => _schedule(),
+            ),
+          ),
+        ],
       ],
     );
   }

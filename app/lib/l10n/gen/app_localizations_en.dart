@@ -19655,7 +19655,7 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallFooter =>
-      'In a call, pause after you speak and it is sent; the answer is read while it is written.';
+      'In a call, pause after you speak and it is sent; the answer is read while it is written. With Qwen Realtime configured, calls become full-duplex.';
 
   @override
   String get speechCallBargeIn => 'Interrupt by speaking';
@@ -19675,6 +19675,43 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallSpeakerHint => 'Headphones always win when connected';
+
+  @override
+  String get speechRealtimeSection => 'Qwen Realtime (full duplex)';
+
+  @override
+  String get speechRealtimeFooter =>
+      'With a DashScope API key, voice calls use cloud full-duplex audio. The key stays on this phone. Without it, calls stay turn-based.';
+
+  @override
+  String get speechRealtimeEnabled => 'Use Realtime calls';
+
+  @override
+  String get speechRealtimeEnabledHint => 'When on and a key is set, the composer’s voice call uses full duplex';
+
+  @override
+  String get speechRealtimeBaseHelper => 'WebSocket URL; leave the default unless you use a workspace host';
+
+  @override
+  String get speechRealtimeModelHelper => 'e.g. qwen-audio-3.1-realtime-flash';
+
+  @override
+  String get speechRealtimeVoiceHelper => 'e.g. longanqian_v3.1';
+
+  @override
+  String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud owns turn-taking)';
+
+  @override
+  String get speechRealtimeKeyLabel => 'API key';
+
+  @override
+  String get speechRealtimeBaseLabel => 'Endpoint';
+
+  @override
+  String get speechRealtimeModelLabel => 'Model';
+
+  @override
+  String get speechRealtimeVoiceLabel => 'Voice';
 
   @override
   String get speechCallHint =>
