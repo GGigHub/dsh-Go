@@ -38,7 +38,7 @@ class RealtimeWakeService : Service() {
     private var listening = false
     private var cooldownUntil = 0L
     private var restartToken = 0
-    private var micToken = 0L
+    private var micToken = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -92,8 +92,8 @@ class RealtimeWakeService : Service() {
         runCatching { recognizer?.cancel() }
         runCatching { recognizer?.destroy() }
         recognizer = null
-        MicArbiter.endDictation(micToken)
-        micToken = 0L
+        if (micToken != 0) MicArbiter.endDictation(micToken)
+        micToken = 0
     }
 
     private fun startAsForeground(notification: Notification) {
@@ -195,7 +195,7 @@ class RealtimeWakeService : Service() {
                 return
             }
         }
-        if (micToken == 0L) micToken = MicArbiter.beginDictation()
+        if (micToken == 0) micToken = MicArbiter.beginDictation()
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
