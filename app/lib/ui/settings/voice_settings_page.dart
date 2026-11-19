@@ -284,6 +284,7 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   final _key = TextEditingController();
   final _model = TextEditingController();
   final _voice = TextEditingController();
+  final _wakePhrase = TextEditingController();
   late final QwenRealtimeSettingsController _store = ref.read(qwenRealtimeSettingsProvider.notifier);
   Timer? _save;
   bool _filled = false;
@@ -300,18 +301,24 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
         _key.text = s.key;
         _model.text = s.model;
         _voice.text = s.voice;
+        _wakePhrase.text = s.wakePhrase;
         setState(() => _filled = true);
       }),
     );
   }
 
-  QwenRealtimeSettings get _typed => QwenRealtimeSettings(
-    base: _base.text.trim(),
-    key: sanitizeRealtimeKey(_key.text),
-    model: _model.text.trim(),
-    voice: _voice.text.trim(),
-    enabled: ref.read(qwenRealtimeSettingsProvider).enabled,
-  );
+  QwenRealtimeSettings get _typed {
+    final current = ref.read(qwenRealtimeSettingsProvider);
+    return QwenRealtimeSettings(
+      base: _base.text.trim(),
+      key: sanitizeRealtimeKey(_key.text),
+      model: _model.text.trim(),
+      voice: _voice.text.trim(),
+      enabled: current.enabled,
+      wakeEnabled: current.wakeEnabled,
+      wakePhrase: _wakePhrase.text.trim().isEmpty ? qwenRealtimeDefaultWakePhrase : _wakePhrase.text.trim(),
+    );
+  }
 
   @override
   void dispose() {
@@ -322,6 +329,7 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
     _key.dispose();
     _model.dispose();
     _voice.dispose();
+    _wakePhrase.dispose();
     super.dispose();
   }
 
@@ -354,6 +362,8 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final enabled = ref.watch(qwenRealtimeSettingsProvider.select((s) => s.enabled));
+    final wakeEnabled = ref.watch(qwenRealtimeSettingsProvider.select((s) => s.wakeEnabled));
+    final android = ref.watch(operatingSystemProvider) == 'android';
     return SettingsSection(
       title: l10n.speechRealtimeSection,
       footer: Text(l10n.speechRealtimeFooter),
@@ -424,7 +434,7 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 12),
+            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 4),
             child: TextField(
               key: const ValueKey('speech-realtime-voice'),
               controller: _voice,
@@ -435,6 +445,28 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
               onChanged: (_) => _schedule(),
             ),
           ),
+          if (android) ...[
+            SettingsSwitchTile(
+              key: const ValueKey('speech-realtime-wake'),
+              title: l10n.speechRealtimeWakeEnabled,
+              subtitle: l10n.speechRealtimeWakeEnabledHint,
+              value: wakeEnabled,
+              onChanged: (on) => unawaited(_store.update(_typed.copyWith(wakeEnabled: on))),
+            ),
+            if (wakeEnabled)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 12),
+                child: TextField(
+                  key: const ValueKey('speech-realtime-wake-phrase'),
+                  controller: _wakePhrase,
+                  decoration: InputDecoration(
+                    labelText: l10n.speechRealtimeWakePhraseLabel,
+                    helperText: l10n.speechRealtimeWakePhraseHelper,
+                  ),
+                  onChanged: (_) => _schedule(),
+                ),
+              ),
+          ],
         ],
       ],
     );

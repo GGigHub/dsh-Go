@@ -28,6 +28,7 @@ import '../../speech/call/voice_call.dart';
 import '../../speech/deepseek_speech.dart';
 import '../../speech/read_aloud.dart';
 import '../../speech/realtime/qwen_realtime_settings.dart';
+import '../../speech/realtime/realtime_keep.dart';
 import '../../speech/speech_audio.dart';
 import '../../speech/speech_out.dart';
 import '../../speech/speech_settings.dart';
@@ -99,6 +100,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   CallController? _callOrNull;
   CallController get _call => _callOrNull!;
   bool _realtime = false;
+  StreamSubscription<RealtimeKeepEvent>? _keepSub;
   final _scene = CallScene();
   late final AnimationController _enter = AnimationController(
     vsync: this,
@@ -186,13 +188,22 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     Future<bool> permission() async => await bridge.requestPermission() == VoicePermission.granted;
     if (realtime.ready) {
       _realtime = true;
+      final keep = ref.read(realtimeKeepProvider);
+      final l10n = appL10n;
       _callOrNull = RealtimeCallController(
         audio: audio,
         pcm: ref.read(streamingPcmCaptureProvider),
         settings: realtime,
         choices: choices,
         permission: permission,
+        keep: keep,
+        keepTitle: l10n.speechRealtimeCallKeepTitle,
+        keepText: l10n.speechRealtimeCallKeepText,
       )..addListener(_changed);
+      _keepSub?.cancel();
+      _keepSub = keep.events.listen((event) {
+        if (event is RealtimeHangUpEvent) _callOrNull?.hangUp();
+      });
     } else {
       final speaker = ref.read(speechSpeakerProvider);
       final deepseek = ref.read(deepSeekSpeechProvider);
@@ -340,6 +351,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_keepSub?.cancel());
     unawaited(_live?.stop());
     _leave?.cancel();
     _enter.dispose();

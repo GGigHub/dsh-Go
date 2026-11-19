@@ -34340,6 +34340,48 @@ abstract class L10n {
   /// **'验证失败：{error}'**
   String speechRealtimeVerifyFailed(String error);
 
+  /// No description provided for @speechRealtimeWakeEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音唤醒'**
+  String get speechRealtimeWakeEnabled;
+
+  /// No description provided for @speechRealtimeWakeEnabledHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'后台监听唤醒词，说中后打开 Realtime 通话（需通知与麦克风）'**
+  String get speechRealtimeWakeEnabledHint;
+
+  /// No description provided for @speechRealtimeWakePhraseLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'唤醒词'**
+  String get speechRealtimeWakePhraseLabel;
+
+  /// No description provided for @speechRealtimeWakePhraseHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'例如 你好小助手'**
+  String get speechRealtimeWakePhraseHelper;
+
+  /// No description provided for @speechRealtimeCallKeepTitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音通话中'**
+  String get speechRealtimeCallKeepTitle;
+
+  /// No description provided for @speechRealtimeCallKeepText.
+  ///
+  /// In zh, this message translates to:
+  /// **'Realtime 全双工通话进行中'**
+  String get speechRealtimeCallKeepText;
+
+  /// No description provided for @speechCallEndBackgroundRealtime.
+  ///
+  /// In zh, this message translates to:
+  /// **'已切到后台，通话继续（通知栏可挂断）'**
+  String get speechCallEndBackgroundRealtime;
+
   /// No description provided for @speechCallHint.
   ///
   /// In zh, this message translates to:

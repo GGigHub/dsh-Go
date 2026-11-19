@@ -316,4 +316,15 @@
     <string name="background_keep_save_failed">Could not save the connection preference. Check it before restarting the app.</string>
     <string name="background_viewport_invalid">Unknown background viewport preset</string>
     <string name="background_viewport_save_failed">Could not save the background viewport preference.</string>
+    <!-- Qwen Realtime call / wake FGS -->
+    <string name="realtime_call_channel_name">Realtime voice call</string>
+    <string name="realtime_call_channel_desc">Keeps the microphone on while a Realtime call runs in the background</string>
+    <string name="realtime_call_notify_title">Voice call</string>
+    <string name="realtime_call_notify_text">Realtime call in progress</string>
+    <string name="realtime_call_hang_up">Hang up</string>
+    <string name="realtime_wake_channel_name">Voice wake</string>
+    <string name="realtime_wake_channel_desc">Listens for a wake phrase to start a Realtime call</string>
+    <string name="realtime_wake_notify_title">Listening for wake phrase</string>
+    <string name="realtime_wake_notify_text">Say “%1$s”</string>
+    <string name="realtime_wake_stop">Stop listening</string>
 </resources>
