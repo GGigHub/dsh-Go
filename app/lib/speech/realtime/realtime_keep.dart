@@ -47,6 +47,31 @@ class RealtimeKeep {
     }
   }
 
+  Future<bool> wakeRunning() async {
+    try {
+      return await _channel.invokeMethod<bool>('wakeRunning') ?? false;
+    } on Object {
+      return false;
+    }
+  }
+
+  /// Pending wake stashed by native while Flutter was not ready; clears it.
+  Future<RealtimeWakeEvent?> consumePendingWake() async {
+    try {
+      final raw = await _channel.invokeMethod<dynamic>('consumePendingWake');
+      if (raw is! Map) return null;
+      final event = RealtimeWakeEvent(
+        phrase: '${raw['phrase'] ?? ''}',
+        heard: '${raw['heard'] ?? ''}',
+      );
+      realtimeLog('keep consumePendingWake phraseLen=${event.phrase.length}');
+      return event;
+    } on Object catch (e) {
+      realtimeLog('keep consumePendingWake failed: $e');
+      return null;
+    }
+  }
+
   Future<void> startCallKeep({required String title, required String text}) async {
     realtimeLog('keep startCallKeep');
     await _channel.invokeMethod<void>('startCallKeep', {'title': title, 'text': text});
@@ -80,7 +105,14 @@ class RealtimeKeep {
       'wakeError' => RealtimeWakeErrorEvent('${args['message'] ?? 'wake error'}'),
       _ => null,
     };
-    if (event != null) _events.add(event);
+    if (event != null) {
+      if (event is RealtimeWakeEvent) {
+        realtimeLog('keep event wake heardLen=${event.heard.length}');
+      } else if (event is RealtimeWakeErrorEvent) {
+        realtimeLog('keep event wakeError ${event.message}');
+      }
+      _events.add(event);
+    }
   }
 
   void dispose() {

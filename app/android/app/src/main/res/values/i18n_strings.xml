@@ -326,5 +326,6 @@
     <string name="realtime_wake_channel_desc">Listens for a wake phrase to start a Realtime call</string>
     <string name="realtime_wake_notify_title">Listening for wake phrase</string>
     <string name="realtime_wake_notify_text">Say “%1$s”</string>
+    <string name="realtime_wake_open_call">Start call</string>
     <string name="realtime_wake_stop">Stop listening</string>
 </resources>

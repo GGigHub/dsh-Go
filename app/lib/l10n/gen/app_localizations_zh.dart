@@ -18691,13 +18691,29 @@ class L10nZh extends L10n {
   String get speechRealtimeWakeEnabled => '语音唤醒';
 
   @override
-  String get speechRealtimeWakeEnabledHint => '后台监听唤醒词，说中后打开 Realtime 通话（需通知与麦克风）';
+  String get speechRealtimeWakeEnabledHint => '后台听唤醒词，说中后像小艺一样进入语音通话（需麦克风与通知）';
 
   @override
   String get speechRealtimeWakePhraseLabel => '唤醒词';
 
   @override
-  String get speechRealtimeWakePhraseHelper => '例如 你好小助手';
+  String get speechRealtimeWakePhraseHelper => '尽量短，例如 小助手';
+
+  @override
+  String get speechRealtimeWakeNeedMic => '语音唤醒需要麦克风权限';
+
+  @override
+  String get speechRealtimeWakeNeedRealtime => '请先打开 Realtime 并填好 API Key';
+
+  @override
+  String speechRealtimeWakeFailed(String error) {
+    return '语音唤醒异常：$error';
+  }
+
+  @override
+  String speechRealtimeWakeListening(String phrase) {
+    return '已开始听唤醒词，可说「$phrase」或点通知「开始通话」';
+  }
 
   @override
   String get speechRealtimeCallKeepTitle => '语音通话中';

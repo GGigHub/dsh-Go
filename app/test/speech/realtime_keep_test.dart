@@ -28,7 +28,7 @@ void main() {
     expect(await keep.supported(), isTrue);
     await keep.startCallKeep(title: 't', text: 'x');
     await keep.stopCallKeep();
-    await keep.startWake('你好小助手');
+    await keep.startWake('小助手');
     await keep.stopWake();
     expect(log.map((c) => c.method), [
       'supported',
@@ -38,7 +38,24 @@ void main() {
       'stopWake',
     ]);
     expect(log[1].arguments, {'title': 't', 'text': 'x'});
-    expect(log[3].arguments, {'phrase': '你好小助手'});
+    expect(log[3].arguments, {'phrase': '小助手'});
+    keep.dispose();
+  });
+
+  test('consumePendingWake maps channel payload', () async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      log.add(call);
+      if (call.method == 'consumePendingWake') {
+        return {'phrase': '小助手', 'heard': '嘿小助手'};
+      }
+      return null;
+    });
+    final keep = RealtimeKeep(channel);
+    final pending = await keep.consumePendingWake();
+    expect(pending?.phrase, '小助手');
+    expect(pending?.heard, '嘿小助手');
     keep.dispose();
   });
 

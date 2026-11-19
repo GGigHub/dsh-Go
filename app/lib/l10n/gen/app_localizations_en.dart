@@ -19738,7 +19738,23 @@ class L10nEn extends L10n {
   String get speechRealtimeWakePhraseLabel => 'Wake phrase';
 
   @override
-  String get speechRealtimeWakePhraseHelper => 'e.g. hey assistant';
+  String get speechRealtimeWakePhraseHelper => 'Keep it short, e.g. hey assistant';
+
+  @override
+  String get speechRealtimeWakeNeedMic => 'Voice wake needs microphone access';
+
+  @override
+  String get speechRealtimeWakeNeedRealtime => 'Turn on Realtime and fill in an API Key first';
+
+  @override
+  String speechRealtimeWakeFailed(String error) {
+    return 'Voice wake error: $error';
+  }
+
+  @override
+  String speechRealtimeWakeListening(String phrase) {
+    return 'Listening — say “$phrase” or tap Start call on the notification';
+  }
 
   @override
   String get speechRealtimeCallKeepTitle => 'Voice call';

@@ -21,7 +21,8 @@ const qwenRealtimeDefaultVoice = 'Tina';
 const qwenRealtimeLegacyDefaultModel = 'qwen-audio-3.1-realtime-flash';
 const qwenRealtimeLegacyDefaultVoice = 'longanqian_v3.1';
 
-const qwenRealtimeDefaultWakePhrase = '你好小助手';
+/// Short phrase (小艺-style); long sentences are hard for background ASR.
+const qwenRealtimeDefaultWakePhrase = '小助手';
 
 class QwenRealtimeSettings {
   const QwenRealtimeSettings({

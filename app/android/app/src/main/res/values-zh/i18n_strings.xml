@@ -319,5 +319,6 @@
     <string name="realtime_wake_channel_desc">监听唤醒词以开始 Realtime 通话</string>
     <string name="realtime_wake_notify_title">正在听唤醒词</string>
     <string name="realtime_wake_notify_text">请说「%1$s」</string>
+    <string name="realtime_wake_open_call">开始通话</string>
     <string name="realtime_wake_stop">停止聆听</string>
 </resources>

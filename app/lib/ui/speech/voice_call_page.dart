@@ -56,6 +56,9 @@ import 'call/call_transcript.dart';
 import 'call/call_visuals.dart';
 import 'speech_ui.dart';
 
+/// Route name for [VoiceCallPage]; wake host skips opening a second one.
+const voiceCallRouteName = 'voice-call';
+
 /// Opens a call with the main chat's conversation. [session] gives its id,
 /// creating it for a new chat; [title] heads the page.
 Future<void> openChatCall(
@@ -67,6 +70,7 @@ Future<void> openChatCall(
   container.read(readAloudProvider.notifier).stop();
   await Navigator.of(context).push(
     PageRouteBuilder<void>(
+      settings: const RouteSettings(name: voiceCallRouteName),
       opaque: true,
       fullscreenDialog: true,
       transitionDuration: AppMotion.of(context, const Duration(milliseconds: 520)),
@@ -91,6 +95,11 @@ class VoiceCallPage extends ConsumerStatefulWidget {
 
   final String title;
   final CallConversation conversation;
+
+  /// How many call pages are currently mounted (wake host skips a second push).
+  static int openCount = 0;
+
+  static bool get isOpen => openCount > 0;
 
   @override
   ConsumerState<VoiceCallPage> createState() => _VoiceCallPageState();
@@ -127,6 +136,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   @override
   void initState() {
     super.initState();
+    VoiceCallPage.openCount++;
     WidgetsBinding.instance.addObserver(this);
     final voices = ref.read(speechVoiceSettingsProvider.notifier);
     // The chosen voice, as soon as the settings have been read (the first reply comes later).
@@ -362,6 +372,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
         ..dispose();
     }
     _scene.dispose();
+    VoiceCallPage.openCount = (VoiceCallPage.openCount - 1).clamp(0, 1 << 30);
     super.dispose();
   }
 

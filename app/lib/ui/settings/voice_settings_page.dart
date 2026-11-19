@@ -15,6 +15,7 @@ import '../../state/streaming_asr_state.dart' show SystemAsrReadiness, ohosStrea
 import '../../state/voice_model_state.dart';
 import '../../state/voice_settings.dart';
 import '../../state/voice_state.dart';
+import '../chat/voice/voice_bridge.dart' show VoicePermission;
 import '../common/app_dialog.dart';
 import '../common/brief_notice.dart';
 import '../companion/companion_voice_page.dart';
@@ -358,6 +359,28 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
     }
   }
 
+  Future<void> _setWakeEnabled(bool on) async {
+    final l10n = context.l10n;
+    if (on) {
+      final permission = await ref.read(voiceBridgeProvider).requestPermission();
+      if (!mounted) return;
+      if (permission != VoicePermission.granted) {
+        showBriefNotice(context, l10n.speechRealtimeWakeNeedMic);
+        return;
+      }
+      if (!_typed.ready) {
+        showBriefNotice(context, l10n.speechRealtimeWakeNeedRealtime);
+        return;
+      }
+    }
+    await _store.update(_typed.copyWith(wakeEnabled: on));
+    if (!mounted) return;
+    if (on) {
+      final phrase = _wakePhrase.text.trim().isEmpty ? qwenRealtimeDefaultWakePhrase : _wakePhrase.text.trim();
+      showBriefNotice(context, l10n.speechRealtimeWakeListening(phrase));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
@@ -451,7 +474,7 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
               title: l10n.speechRealtimeWakeEnabled,
               subtitle: l10n.speechRealtimeWakeEnabledHint,
               value: wakeEnabled,
-              onChanged: (on) => unawaited(_store.update(_typed.copyWith(wakeEnabled: on))),
+              onChanged: (on) => unawaited(_setWakeEnabled(on)),
             ),
             if (wakeEnabled)
               Padding(
