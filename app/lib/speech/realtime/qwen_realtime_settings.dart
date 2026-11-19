@@ -84,6 +84,22 @@ class QwenRealtimeSettings {
 String sanitizeRealtimeKey(String value) =>
     value.trim().replaceAll(RegExp(r'\s+'), '').replaceAll('\uFEFF', '');
 
+/// Soft shape check for Bailian keys (`sk-…`). Returns null when OK.
+String? realtimeKeyShapeHint(String value) {
+  final key = sanitizeRealtimeKey(value);
+  if (key.isEmpty) return 'API Key is empty';
+  if (!key.startsWith('sk-')) return 'API Key should start with sk- (re-copy from Bailian console)';
+  if (key.length < 20) return 'API Key looks too short (len=${key.length})';
+  // Typical DashScope keys are ~35–50 chars; 100+ often means pasted URL/CSV junk.
+  if (key.length > 80) {
+    return 'API Key looks too long (len=${key.length}); paste only the sk-… value, not the CSV/URL';
+  }
+  if (!RegExp(r'^sk-[A-Za-z0-9._-]+$').hasMatch(key)) {
+    return 'API Key has unexpected characters; re-copy from Bailian console';
+  }
+  return null;
+}
+
 class QwenRealtimeSettingsController extends Notifier<QwenRealtimeSettings> {
   static const _plainKey = 'speech_qwen_realtime_v1';
   static const _secretKey = 'speech_qwen_realtime_key';

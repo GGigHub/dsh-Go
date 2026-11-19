@@ -20,7 +20,14 @@ final class QwenRealtimeVerifyFailed extends QwenRealtimeVerifyResult {
 Future<QwenRealtimeVerifyResult> verifyQwenRealtime(QwenRealtimeSettings settings) async {
   final key = sanitizeRealtimeKey(settings.key);
   if (key.isEmpty) return const QwenRealtimeVerifyFailed('API Key is empty');
+  final shape = realtimeKeyShapeHint(key);
+  if (shape != null) return QwenRealtimeVerifyFailed(shape);
   if (settings.websocketUri == null) return const QwenRealtimeVerifyFailed('invalid endpoint');
+  if (settings.isOmniRealtime && settings.workspaceId == null) {
+    return const QwenRealtimeVerifyFailed(
+      'Omni needs a workspace host: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime',
+    );
+  }
   final session = QwenRealtimeSession();
   try {
     await session.open(settings.copyWith(key: key));
@@ -32,6 +39,9 @@ Future<QwenRealtimeVerifyResult> verifyQwenRealtime(QwenRealtimeSettings setting
     } on Object {
       // Already closed.
     }
-    return QwenRealtimeVerifyFailed('$e');
+    var message = '$e';
+    if (message.startsWith('Bad state: ')) message = message.substring('Bad state: '.length);
+    if (message.startsWith('StateError: ')) message = message.substring('StateError: '.length);
+    return QwenRealtimeVerifyFailed(message);
   }
 }

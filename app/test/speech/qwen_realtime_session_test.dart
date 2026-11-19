@@ -41,14 +41,14 @@ void main() {
     final session = QwenRealtimeSession(
       connect: (uri, {headers}) async {
         expect(uri.queryParameters['model'], 'qwen-audio-3.1-realtime-flash');
-        expect(headers?['Authorization'], 'Bearer test-key');
+        expect(headers?['Authorization'], 'Bearer sk-testkey0123456789abcdef');
         expect(headers?.containsKey('X-DashScope-WorkSpace'), isFalse);
         return fake;
       },
     );
     final events = session.events.toList();
     final opening = session.open(
-      const QwenRealtimeSettings(key: 'test-key', model: 'qwen-audio-3.1-realtime-flash'),
+      const QwenRealtimeSettings(key: 'sk-testkey0123456789abcdef', model: 'qwen-audio-3.1-realtime-flash'),
     );
     await Future<void>.delayed(Duration.zero);
     expect(fake.sent, isEmpty);
@@ -90,7 +90,7 @@ void main() {
     );
     const settings = QwenRealtimeSettings(
       base: 'wss://ws-17piqy1lazm81wox.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime',
-      key: 'test-key',
+      key: 'sk-testkey0123456789abcdef',
       model: 'qwen3.8-omni-flash-realtime',
       voice: 'Tina',
     );
@@ -128,5 +128,10 @@ void main() {
 
   test('sanitizeRealtimeKey strips whitespace', () {
     expect(sanitizeRealtimeKey(' sk-abc \n'), 'sk-abc');
+  });
+
+  test('realtimeKeyShapeHint flags oversized paste', () {
+    expect(realtimeKeyShapeHint('sk-${'a' * 100}'), contains('too long'));
+    expect(realtimeKeyShapeHint('sk-shortbutvalidkey123456'), isNull);
   });
 }

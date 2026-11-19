@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'qwen_realtime_connect.dart';
 import 'qwen_realtime_log.dart';
 import 'qwen_realtime_settings.dart';
 
@@ -76,10 +77,12 @@ final class QwenRealtimeClosed extends QwenRealtimeEvent {
 /// One DashScope realtime session. Caller owns mic/playback.
 class QwenRealtimeSession {
   QwenRealtimeSession({
-    Future<WebSocket> Function(Uri uri, {Map<String, dynamic>? headers})? connect,
-  }) : _connect = connect ?? ((uri, {headers}) => WebSocket.connect(uri.toString(), headers: headers));
+    Future<WebSocket> Function(Uri uri, {Map<String, String>? headers})? connect,
+  }) : _connect =
+           connect ??
+           ((uri, {headers}) => connectQwenRealtime(uri, headers: headers ?? const {}));
 
-  final Future<WebSocket> Function(Uri uri, {Map<String, dynamic>? headers}) _connect;
+  final Future<WebSocket> Function(Uri uri, {Map<String, String>? headers}) _connect;
   final _events = StreamController<QwenRealtimeEvent>.broadcast();
   WebSocket? _ws;
   int _event = 0;
@@ -98,7 +101,10 @@ class QwenRealtimeSession {
     final key = sanitizeRealtimeKey(settings.key);
     if (key.isEmpty) throw ArgumentError('realtime key required');
 
-    final headers = <String, dynamic>{'Authorization': 'Bearer $key'};
+    final shape = realtimeKeyShapeHint(key);
+    if (shape != null) realtimeLog('key shape warning: $shape');
+
+    final headers = <String, String>{'Authorization': 'Bearer $key'};
     final workspace = settings.workspaceId;
     if (workspace != null) headers['X-DashScope-WorkSpace'] = workspace;
 
