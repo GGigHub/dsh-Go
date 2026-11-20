@@ -18617,7 +18617,7 @@ class L10nZh extends L10n {
   String get speechCallSection => '语音通话';
 
   @override
-  String get speechCallFooter => '通话时说完一句停一下，就会发出去；回答边写边读。';
+  String get speechCallFooter => '三种通话方式共用当前会话的 agent（上下文、记忆、工具）。在上方选择模式。';
 
   @override
   String get speechCallBargeIn => '插话打断';
@@ -18636,6 +18636,85 @@ class L10nZh extends L10n {
 
   @override
   String get speechCallSpeakerHint => '接上耳机时总用耳机';
+
+  @override
+  String get speechRealtimeSection => '语音通话方式';
+
+  @override
+  String get speechRealtimeFooter =>
+      '轮次制：手机/云端识别。云端：百炼 Realtime 听写（需 Key，Omni 用业务空间域名）。局域网：主机 STT（ws://主机IP:端口/v1/realtime，Key 可空）。大脑都是 DSH。日志：adb logcat | grep dsh.realtime';
+
+  @override
+  String get speechCallModeLabel => '通话方式';
+
+  @override
+  String get speechCallModeTurnBased => '轮次制';
+
+  @override
+  String get speechCallModeCloud => '云端';
+
+  @override
+  String get speechCallModeLan => '局域网';
+
+  @override
+  String get speechCallModeHintTurnBased => '说完一句再识别；用设置里的识别与朗读方式';
+
+  @override
+  String get speechCallModeHintCloud => '百炼 Realtime 听写；回答仍走 DSH 与 App 朗读';
+
+  @override
+  String get speechCallModeHintLan => '主机 VAD/STT；回答仍走 DSH 与 App 朗读';
+
+  @override
+  String get speechRealtimeEnabled => '使用 Realtime 通话';
+
+  @override
+  String get speechRealtimeEnabledHint => '打开后，百炼需 Key；局域网只需可达的接入地址';
+
+  @override
+  String get speechRealtimeBaseHelper =>
+      '局域网例：ws://192.168.1.10:8765/v1/realtime；Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+
+  @override
+  String get speechRealtimeModelHelper => '局域网可填主机约定 id；百炼默认 qwen3.8-omni-flash-realtime';
+
+  @override
+  String get speechRealtimeVoiceHelper => '云端 Realtime 音色字段；朗读实际用伙伴小屋/通话声音';
+
+  @override
+  String get speechRealtimeLegacyHint => '云端/局域网听写模式下，此项由对端接管，不适用';
+
+  @override
+  String get speechRealtimeKeyLabel => 'API Key（仅云端需要）';
+
+  @override
+  String get speechRealtimeBaseLabel => '接入地址';
+
+  @override
+  String get speechRealtimeModelLabel => '模型';
+
+  @override
+  String get speechRealtimeVoiceLabel => '音色';
+
+  @override
+  String get speechRealtimeVerify => '验证连接';
+
+  @override
+  String get speechRealtimeVerifyNeedKey => '云端模式请先填写 API Key';
+
+  @override
+  String get speechRealtimeVerifyNeedEndpoint => '请先填写有效的接入地址（ws:// 或 wss://）';
+
+  @override
+  String get speechRealtimeVerifyNeedLan => '局域网模式请填写 ws:// 或私网地址';
+
+  @override
+  String get speechRealtimeVerifyOk => '连接成功，可以开始语音通话';
+
+  @override
+  String speechRealtimeVerifyFailed(String error) {
+    return '验证失败：$error';
+  }
 
   @override
   String get speechCallHint => '（这是语音通话，我说的话由语音识别转成文字。请用简短、口语化的中文回答，不要用 Markdown、列表、表格和代码块。）';

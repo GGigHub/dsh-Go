@@ -34205,7 +34205,7 @@ abstract class L10n {
   /// No description provided for @speechCallFooter.
   ///
   /// In zh, this message translates to:
-  /// **'通话时说完一句停一下，就会发出去；回答边写边读。'**
+  /// **'三种通话方式共用当前会话的 agent（上下文、记忆、工具）。在上方选择模式。'**
   String get speechCallFooter;
 
   /// No description provided for @speechCallBargeIn.
@@ -34243,6 +34243,156 @@ abstract class L10n {
   /// In zh, this message translates to:
   /// **'接上耳机时总用耳机'**
   String get speechCallSpeakerHint;
+
+  /// No description provided for @speechRealtimeSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'语音通话方式'**
+  String get speechRealtimeSection;
+
+  /// No description provided for @speechRealtimeFooter.
+  ///
+  /// In zh, this message translates to:
+  /// **'轮次制：手机/云端识别。云端：百炼 Realtime 听写（需 Key，Omni 用业务空间域名）。局域网：主机 STT（ws://主机IP:端口/v1/realtime，Key 可空）。大脑都是 DSH。日志：adb logcat | grep dsh.realtime'**
+  String get speechRealtimeFooter;
+
+  /// No description provided for @speechCallModeLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'通话方式'**
+  String get speechCallModeLabel;
+
+  /// No description provided for @speechCallModeTurnBased.
+  ///
+  /// In zh, this message translates to:
+  /// **'轮次制'**
+  String get speechCallModeTurnBased;
+
+  /// No description provided for @speechCallModeCloud.
+  ///
+  /// In zh, this message translates to:
+  /// **'云端'**
+  String get speechCallModeCloud;
+
+  /// No description provided for @speechCallModeLan.
+  ///
+  /// In zh, this message translates to:
+  /// **'局域网'**
+  String get speechCallModeLan;
+
+  /// No description provided for @speechCallModeHintTurnBased.
+  ///
+  /// In zh, this message translates to:
+  /// **'说完一句再识别；用设置里的识别与朗读方式'**
+  String get speechCallModeHintTurnBased;
+
+  /// No description provided for @speechCallModeHintCloud.
+  ///
+  /// In zh, this message translates to:
+  /// **'百炼 Realtime 听写；回答仍走 DSH 与 App 朗读'**
+  String get speechCallModeHintCloud;
+
+  /// No description provided for @speechCallModeHintLan.
+  ///
+  /// In zh, this message translates to:
+  /// **'主机 VAD/STT；回答仍走 DSH 与 App 朗读'**
+  String get speechCallModeHintLan;
+
+  /// No description provided for @speechRealtimeEnabled.
+  ///
+  /// In zh, this message translates to:
+  /// **'使用 Realtime 通话'**
+  String get speechRealtimeEnabled;
+
+  /// No description provided for @speechRealtimeEnabledHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'打开后，百炼需 Key；局域网只需可达的接入地址'**
+  String get speechRealtimeEnabledHint;
+
+  /// No description provided for @speechRealtimeBaseHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'局域网例：ws://192.168.1.10:8765/v1/realtime；Omni：wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime'**
+  String get speechRealtimeBaseHelper;
+
+  /// No description provided for @speechRealtimeModelHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'局域网可填主机约定 id；百炼默认 qwen3.8-omni-flash-realtime'**
+  String get speechRealtimeModelHelper;
+
+  /// No description provided for @speechRealtimeVoiceHelper.
+  ///
+  /// In zh, this message translates to:
+  /// **'云端 Realtime 音色字段；朗读实际用伙伴小屋/通话声音'**
+  String get speechRealtimeVoiceHelper;
+
+  /// No description provided for @speechRealtimeLegacyHint.
+  ///
+  /// In zh, this message translates to:
+  /// **'云端/局域网听写模式下，此项由对端接管，不适用'**
+  String get speechRealtimeLegacyHint;
+
+  /// No description provided for @speechRealtimeKeyLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'API Key（仅云端需要）'**
+  String get speechRealtimeKeyLabel;
+
+  /// No description provided for @speechRealtimeBaseLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'接入地址'**
+  String get speechRealtimeBaseLabel;
+
+  /// No description provided for @speechRealtimeModelLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'模型'**
+  String get speechRealtimeModelLabel;
+
+  /// No description provided for @speechRealtimeVoiceLabel.
+  ///
+  /// In zh, this message translates to:
+  /// **'音色'**
+  String get speechRealtimeVoiceLabel;
+
+  /// No description provided for @speechRealtimeVerify.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证连接'**
+  String get speechRealtimeVerify;
+
+  /// No description provided for @speechRealtimeVerifyNeedKey.
+  ///
+  /// In zh, this message translates to:
+  /// **'云端模式请先填写 API Key'**
+  String get speechRealtimeVerifyNeedKey;
+
+  /// No description provided for @speechRealtimeVerifyNeedEndpoint.
+  ///
+  /// In zh, this message translates to:
+  /// **'请先填写有效的接入地址（ws:// 或 wss://）'**
+  String get speechRealtimeVerifyNeedEndpoint;
+
+  /// No description provided for @speechRealtimeVerifyNeedLan.
+  ///
+  /// In zh, this message translates to:
+  /// **'局域网模式请填写 ws:// 或私网地址'**
+  String get speechRealtimeVerifyNeedLan;
+
+  /// No description provided for @speechRealtimeVerifyOk.
+  ///
+  /// In zh, this message translates to:
+  /// **'连接成功，可以开始语音通话'**
+  String get speechRealtimeVerifyOk;
+
+  /// No description provided for @speechRealtimeVerifyFailed.
+  ///
+  /// In zh, this message translates to:
+  /// **'验证失败：{error}'**
+  String speechRealtimeVerifyFailed(String error);
 
   /// No description provided for @speechCallHint.
   ///

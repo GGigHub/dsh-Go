@@ -13,13 +13,13 @@ import '../../../speech/speech_out.dart' show speakable;
 import '../../common/app_sheet.dart';
 import '../../theme/theme.dart';
 
-Future<void> showCallTranscript(BuildContext context, VoiceCallController call) =>
+Future<void> showCallTranscript(BuildContext context, CallController call) =>
     showAppSheet<void>(context, heightFactor: 0.72, builder: (sheet) => CallTranscript(call: call));
 
 class CallTranscript extends StatefulWidget {
   const CallTranscript({super.key, required this.call});
 
-  final VoiceCallController call;
+  final CallController call;
 
   @override
   State<CallTranscript> createState() => _CallTranscriptState();

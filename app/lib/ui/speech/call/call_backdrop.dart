@@ -174,24 +174,29 @@ class _CompanionBackdropState extends ConsumerState<CompanionBackdrop> {
 /// The three backdrops side by side; picking one applies it at once.
 /// [inCall]: opened from a call, which also offers her voice and the
 /// recognition; [beforeVoice] runs before her voice's page opens.
-Future<void> showCallBackdropSheet(BuildContext context, {bool inCall = false, VoidCallback? beforeVoice}) =>
-    showAppSheet<void>(
-      context,
-      isScrollControlled: true,
-      // Scrolls on a short screen (a phone on its side): the in-call rows are below the fold there.
-      builder: (sheet) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          child: _BackdropChooser(inCall: inCall, beforeVoice: beforeVoice),
-        ),
-      ),
-    );
+Future<void> showCallBackdropSheet(
+  BuildContext context, {
+  bool inCall = false,
+  VoidCallback? beforeVoice,
+  bool realtime = false,
+}) => showAppSheet<void>(
+  context,
+  isScrollControlled: true,
+  // Scrolls on a short screen (a phone on its side): the in-call rows are below the fold there.
+  builder: (sheet) => SafeArea(
+    top: false,
+    child: SingleChildScrollView(
+      child: _BackdropChooser(inCall: inCall, beforeVoice: beforeVoice, realtime: realtime),
+    ),
+  ),
+);
 
 class _BackdropChooser extends ConsumerStatefulWidget {
-  const _BackdropChooser({required this.inCall, this.beforeVoice});
+  const _BackdropChooser({required this.inCall, this.beforeVoice, this.realtime = false});
 
   final bool inCall;
   final VoidCallback? beforeVoice;
+  final bool realtime;
 
   @override
   ConsumerState<_BackdropChooser> createState() => _BackdropChooserState();
@@ -306,22 +311,41 @@ class _BackdropChooserState extends ConsumerState<_BackdropChooser> {
           ),
           if (widget.inCall) ...[
             const SizedBox(height: 20),
-            Text(l10n.speechCallPause, style: theme.textTheme.titleSmall),
+            Text(
+              l10n.speechCallPause,
+              style: theme.textTheme.titleSmall?.copyWith(
+                decoration: widget.realtime ? TextDecoration.lineThrough : null,
+              ),
+            ),
             const SizedBox(height: 10),
-            SegmentedPill<CallPause>(
-              key: const ValueKey('call-pause'),
-              segments: callPauseSegments(l10n),
-              selected: settings.pause,
-              onChanged: (pause) =>
-                  unawaited(ref.read(callSettingsProvider.notifier).edit((saved) => saved.copyWith(pause: pause))),
+            IgnorePointer(
+              ignoring: widget.realtime,
+              child: Opacity(
+                opacity: widget.realtime ? 0.45 : 1,
+                child: SegmentedPill<CallPause>(
+                  key: const ValueKey('call-pause'),
+                  segments: callPauseSegments(l10n),
+                  selected: settings.pause,
+                  onChanged: (pause) =>
+                      unawaited(ref.read(callSettingsProvider.notifier).edit((saved) => saved.copyWith(pause: pause))),
+                ),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              l10n.speechCallPauseHint,
-              style: theme.textTheme.bodySmall?.copyWith(color: DshColors.of(context).textTertiary),
+              widget.realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallPauseHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: DshColors.of(context).textTertiary,
+                decoration: widget.realtime ? TextDecoration.lineThrough : null,
+              ),
             ),
             const SizedBox(height: 20),
-            Text(l10n.speechCallSpeechSection, style: theme.textTheme.titleSmall),
+            Text(
+              l10n.speechCallSpeechSection,
+              style: theme.textTheme.titleSmall?.copyWith(
+                decoration: widget.realtime ? TextDecoration.lineThrough : null,
+              ),
+            ),
             const SizedBox(height: 6),
             SheetGroup(
               margin: EdgeInsets.zero,
@@ -329,29 +353,39 @@ class _BackdropChooserState extends ConsumerState<_BackdropChooser> {
                 SettingsTile(
                   key: const ValueKey('call-voice'),
                   title: l10n.speechCallVoice,
+                  struck: widget.realtime,
                   value: Text(speechVoiceLabel(l10n, ref.watch(speechVoiceSettingsProvider))),
-                  onTap: () {
-                    widget.beforeVoice?.call();
-                    unawaited(
-                      Navigator.of(context)
-                          .push(MaterialPageRoute<void>(builder: (_) => const CompanionVoicePage(shared: true))),
-                    );
-                  },
+                  onTap: widget.realtime
+                      ? null
+                      : () {
+                          widget.beforeVoice?.call();
+                          unawaited(
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(builder: (_) => const CompanionVoicePage(shared: true)),
+                            ),
+                          );
+                        },
                 ),
                 SettingsTile(
                   key: const ValueKey('call-recognition'),
                   title: l10n.voiceModeSection,
+                  struck: widget.realtime,
                   value: Text(voiceModeLabel(l10n, ref.watch(voiceSettingsProvider))),
-                  onTap: () => unawaited(
-                    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const VoiceSettingsPage())),
-                  ),
+                  onTap: widget.realtime
+                      ? null
+                      : () => unawaited(
+                          Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const VoiceSettingsPage())),
+                        ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              l10n.speechCallSpeechHint,
-              style: theme.textTheme.bodySmall?.copyWith(color: DshColors.of(context).textTertiary),
+              widget.realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallSpeechHint,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: DshColors.of(context).textTertiary,
+                decoration: widget.realtime ? TextDecoration.lineThrough : null,
+              ),
             ),
           ],
         ],

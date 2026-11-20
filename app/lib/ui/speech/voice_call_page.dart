@@ -22,10 +22,12 @@ import '../../l10n/l10n.dart';
 import '../../performance/performance_state.dart';
 import '../../state/android_features.dart' show operatingSystemProvider;
 import '../../speech/call/chat_call.dart';
+import '../../speech/call/realtime_call.dart';
 import '../../speech/call/thinking_cue.dart';
 import '../../speech/call/voice_call.dart';
 import '../../speech/deepseek_speech.dart';
 import '../../speech/read_aloud.dart';
+import '../../speech/realtime/qwen_realtime_settings.dart';
 import '../../speech/speech_audio.dart';
 import '../../speech/speech_out.dart';
 import '../../speech/speech_settings.dart';
@@ -94,7 +96,9 @@ class VoiceCallPage extends ConsumerStatefulWidget {
 }
 
 class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindingObserver, TickerProviderStateMixin {
-  late final VoiceCallController _call;
+  CallController? _callOrNull;
+  CallController get _call => _callOrNull!;
+  bool _realtime = false;
   final _scene = CallScene();
   late final AnimationController _enter = AnimationController(
     vsync: this,
@@ -122,54 +126,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    final callSettings = ref.read(callSettingsProvider.notifier);
     final voices = ref.read(speechVoiceSettingsProvider.notifier);
     // The chosen voice, as soon as the settings have been read (the first reply comes later).
     _voice = ref.read(speechVoiceSettingsProvider) ?? voices.defaults;
-    final speaker = ref.read(speechSpeakerProvider);
-    final audio = ref.read(speechAudioProvider);
-    final deepseek = ref.read(deepSeekSpeechProvider);
-    final bridge = ref.read(voiceBridgeProvider);
-    _call = VoiceCallController(
-      audio: audio,
-      conversation: widget.conversation,
-      recognizer: () async {
-        // The phone's own voice warms up while the call starts, not when changed mid-reply.
-        await _settleVoice(warm: _call.phase == CallPhase.starting);
-        if (!mounted) return null;
-        return ref.read(callRecognizerProvider)();
-      },
-      voice: () => speechOutFor(
-        _voice,
-        deepseek: deepseek,
-        audio: audio,
-        speaker: speaker,
-        call: true,
-        levels: true,
-        gap: ref.read(deepSeekSpeechGapProvider),
-      ),
-      // The saved ones, not the defaults shown while they load (a first call after launch).
-      choices: () async {
-        final saved = await callSettings.ready();
-        return (
-          bargeIn: saved.bargeIn,
-          speaker: saved.speaker,
-          spokenHint: saved.spoken ? appNote(appL10n.speechCallHint) : null,
-          pause: saved.pause,
-        );
-      },
-      permission: () async => await bridge.requestPermission() == VoicePermission.granted,
-      cutNote: (heard) => appNote(heard.isEmpty ? appL10n.speechCallCutEarly : appL10n.speechCallCutNote(heard)),
-      thinkingCue: () async {
-        // Asked again after the settings: her voice may have begun meanwhile.
-        if ((await callSettings.ready()).cue && _call.cueStill) await playThinkingCue(audio);
-      },
-    )..addListener(_changed);
-    // Changed in 通话设置 (or anywhere) during the call: from the next sentence on.
-    ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
-    ref.listenManual(voiceSettingsProvider, (_, _) => unawaited(_call.refreshRecognizer()));
-    ref.listenManual(cloudAsrProvider, (_, _) => unawaited(_call.refreshRecognizer()));
-    ref.listenManual(callSettingsProvider.select((s) => s.pause), (_, pause) => _call.setPause(pause));
     HapticFeedback.mediumImpact();
     _enter.forward();
     unawaited(_start());
@@ -210,10 +169,79 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   int _settling = 0;
 
   Future<void> _start() async {
+    final callSettings = ref.read(callSettingsProvider.notifier);
+    final audio = ref.read(speechAudioProvider);
+    final bridge = ref.read(voiceBridgeProvider);
+    final realtime = await ref.read(qwenRealtimeSettingsProvider.notifier).ready();
+    if (!mounted) return;
+    Future<CallChoices> choices() async {
+      final saved = await callSettings.ready();
+      return (
+        bargeIn: saved.bargeIn,
+        speaker: saved.speaker,
+        spokenHint: saved.spoken ? appNote(appL10n.speechCallHint) : null,
+        pause: saved.pause,
+      );
+    }
+    Future<bool> permission() async => await bridge.requestPermission() == VoicePermission.granted;
+    final speaker = ref.read(speechSpeakerProvider);
+    final deepseek = ref.read(deepSeekSpeechProvider);
+    SpeechOut makeVoice() => speechOutFor(
+      _voice,
+      deepseek: deepseek,
+      audio: audio,
+      speaker: speaker,
+      call: true,
+      levels: true,
+      gap: ref.read(deepSeekSpeechGapProvider),
+    );
+    Future<void> cue() async {
+      if ((await callSettings.ready()).cue && _call.cueStill) await playThinkingCue(audio);
+    }
+    String cut(String heard) =>
+        appNote(heard.isEmpty ? appL10n.speechCallCutEarly : appL10n.speechCallCutNote(heard));
+    if (realtime.ready) {
+      _realtime = true;
+      await _settleVoice(warm: true);
+      if (!mounted) return;
+      // Realtime: cloud VAD/ASR; DSH chat path keeps context, memory and tools.
+      _callOrNull = RealtimeCallController(
+        audio: audio,
+        pcm: ref.read(streamingPcmCaptureProvider),
+        settings: realtime,
+        conversation: widget.conversation,
+        voice: makeVoice,
+        choices: choices,
+        permission: permission,
+        cutNote: cut,
+        thinkingCue: cue,
+      )..addListener(_changed);
+      ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
+    } else {
+      _callOrNull = VoiceCallController(
+        audio: audio,
+        conversation: widget.conversation,
+        recognizer: () async {
+          await _settleVoice(warm: _call.phase == CallPhase.starting);
+          if (!mounted) return null;
+          return ref.read(callRecognizerProvider)();
+        },
+        voice: makeVoice,
+        choices: choices,
+        permission: permission,
+        cutNote: cut,
+        thinkingCue: cue,
+      )..addListener(_changed);
+      ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
+      ref.listenManual(voiceSettingsProvider, (_, _) => unawaited(_call.refreshRecognizer()));
+      ref.listenManual(cloudAsrProvider, (_, _) => unawaited(_call.refreshRecognizer()));
+      ref.listenManual(callSettingsProvider.select((s) => s.pause), (_, pause) => _call.setPause(pause));
+    }
+    await _call.start();
+    if (_realtime || !mounted || _call.phase == CallPhase.ended) return;
     final pcm = ref.read(streamingPcmCaptureProvider);
     final asr = ref.read(streamingAsrProvider);
     final found = liveWordsModel(ref);
-    await _call.start();
     try {
       final chosen = await found;
       if (chosen == null || !mounted || _call.phase == CallPhase.ended) return;
@@ -236,7 +264,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
 
   void _changed() {
     if (!mounted) return;
-    final phase = _call.phase;
+    final call = _callOrNull;
+    if (call == null) return;
+    final phase = call.phase;
     if (phase != _shown) {
       _arrived(phase);
       _shown = phase;
@@ -244,7 +274,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     if (phase == CallPhase.ended && _leave == null) {
       // Hung up: the light sinks away first. Ended for a reason: the reason stays a moment.
       _leave = Timer(
-        _call.ended == CallEnd.hungUp ? const Duration(milliseconds: 380) : const Duration(milliseconds: 2600),
+        call.ended == CallEnd.hungUp ? const Duration(milliseconds: 380) : const Duration(milliseconds: 2600),
         () {
           if (!mounted) return;
           // The call page itself, not a sheet open over it (字幕, 背景).
@@ -291,17 +321,18 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   }
 
   void _tick(double seconds) {
+    final call = _callOrNull;
     _scene.tick(
       seconds,
-      phase: _call.phase,
-      mic: _call.micLevel,
-      voice: _call.voiceLevel,
-      isMuted: _call.muted,
+      phase: call?.phase ?? CallPhase.starting,
+      mic: call?.micLevel ?? 0,
+      voice: call?.voiceLevel ?? 0,
+      isMuted: call?.muted ?? false,
       still: _still,
     );
     // Her mouth follows the voice, twenty times a second at most.
     if (_stageReady && seconds - _mouthAt > 0.05) {
-      final speaking = _call.phase == CallPhase.speaking;
+      final speaking = call?.phase == CallPhase.speaking;
       final open = speaking ? (_scene.level * 1.3).clamp(0.0, 1.0) : 0.0;
       if (speaking || _mouthOpen) {
         _stage.command('mouth', {'value': open});
@@ -313,7 +344,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) _call.backgrounded();
+    final call = _callOrNull;
+    if (call == null) return;
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.hidden) call.backgrounded();
   }
 
   @override
@@ -322,22 +355,28 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     unawaited(_live?.stop());
     _leave?.cancel();
     _enter.dispose();
-    _call
-      ..removeListener(_changed)
-      ..dispose();
+    final call = _callOrNull;
+    if (call != null) {
+      call
+        ..removeListener(_changed)
+        ..dispose();
+    }
     _scene.dispose();
     super.dispose();
   }
 
   void _hangUp() {
     HapticFeedback.heavyImpact();
-    _call.hangUp();
+    _callOrNull?.hangUp();
   }
 
   (String, bool) _status(L10n l10n) {
-    if (_call.phase == CallPhase.ended) {
+    final call = _callOrNull;
+    if (call == null) return (l10n.speechCallStarting, true);
+    if (call.phase == CallPhase.ended) {
+      final failedDetail = call.error;
       return (
-        switch (_call.ended) {
+        switch (call.ended) {
           CallEnd.permission => l10n.speechCallEndPermission,
           CallEnd.microphone => l10n.speechCallEndMicrophone,
           CallEnd.noRecognizer =>
@@ -349,16 +388,20 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                       ? l10n.speechCallEndNoRecognizerSignedIn
                       : l10n.speechCallEndNoRecognizer),
           CallEnd.background => l10n.speechCallEndBackground,
-          CallEnd.failed => l10n.speechCallEndFailed,
+          // Realtime path often fails on WebSocket/session, not the mic —
+          // surface the server/client detail so "录音出错" is not a dead end.
+          CallEnd.failed => failedDetail == null || '$failedDetail'.trim().isEmpty
+              ? l10n.speechCallEndFailed
+              : '${l10n.speechCallEndFailed}: $failedDetail',
           CallEnd.hungUp || null => l10n.speechCallEnded,
         },
         false,
       );
     }
-    if (_call.muted && _call.phase != CallPhase.speaking && _call.phase != CallPhase.thinking) {
+    if (call.muted && call.phase != CallPhase.speaking && call.phase != CallPhase.thinking) {
       return (l10n.speechCallMuted, false);
     }
-    return switch (_call.phase) {
+    return switch (call.phase) {
       CallPhase.starting => (l10n.speechCallStarting, true),
       CallPhase.listening => (l10n.speechCallListening, true),
       CallPhase.hearing => (l10n.speechCallHearing, false),
@@ -374,7 +417,8 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     if (visual == CallVisual.glass) {
       return CallLight(key: const ValueKey('glass'), scene: _scene, palette: palette, size: size);
     }
-    final phase = _call.phase;
+    final call = _callOrNull;
+    final phase = call?.phase ?? CallPhase.starting;
     return VoiceRing(
       key: ValueKey(visual),
       type: visual == CallVisual.mono ? VoiceRingType.mono : VoiceRingType.ring,
@@ -387,10 +431,14 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
       size: size * 0.82,
       theme: dark ? VoiceRingTheme.dark : VoiceRingTheme.light,
       paused: phase == CallPhase.ended,
-      level: () => switch (_call.phase) {
-        CallPhase.hearing when !_call.muted => VoiceRingLevel.mic(_call.micLevel),
-        CallPhase.speaking => VoiceRingLevel.playback(_call.voiceLevel),
-        _ => 0,
+      level: () {
+        final c = _callOrNull;
+        if (c == null) return 0.0;
+        return switch (c.phase) {
+          CallPhase.hearing when !c.muted => VoiceRingLevel.mic(c.micLevel),
+          CallPhase.speaking => VoiceRingLevel.playback(c.voiceLevel),
+          _ => 0.0,
+        };
       },
     );
   }
@@ -414,19 +462,20 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
 
   /// The light, which gives a little under the finger; tapped while she speaks, she skips ahead.
   Widget _lightKey(L10n l10n, String status, CallVisual visual, CallPalette palette, bool dark, double size) {
+    final speaking = _callOrNull?.phase == CallPhase.speaking;
     return Semantics(
-      button: _call.phase == CallPhase.speaking,
+      button: speaking,
       label: status,
-      hint: _call.phase == CallPhase.speaking ? l10n.speechCallSkipHint : null,
+      hint: speaking ? l10n.speechCallSkipHint : null,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => setState(() => _pressed = true),
         onTapUp: (_) => setState(() => _pressed = false),
         onTapCancel: () => setState(() => _pressed = false),
-        onTap: _call.phase == CallPhase.speaking
+        onTap: speaking
             ? () {
                 HapticFeedback.lightImpact();
-                _call.skip();
+                _callOrNull?.skip();
               }
             : null,
         child: AnimatedScale(
@@ -453,8 +502,10 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
         );
 
   void _openTranscript() {
+    final call = _callOrNull;
+    if (call == null) return;
     HapticFeedback.selectionClick();
-    unawaited(showCallTranscript(context, _call));
+    unawaited(showCallTranscript(context, call));
   }
 
   @override
@@ -468,24 +519,25 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     // The keys sit over a field that moves every frame, so their frosting is redone every
     // frame too: more than HarmonyOS's renderer, or the light mode, can spare.
     final keyBlur = blur && !performance.lightweight && ref.watch(operatingSystemProvider) != 'ohos';
-    final ended = _call.phase == CallPhase.ended;
+    final call = _callOrNull;
+    final ended = call?.phase == CallPhase.ended;
     final image =
         settings.backdrop == CallBackdrop.image && settings.image.isNotEmpty && File(settings.image).existsSync()
         ? settings.image
         : null;
     final her = settings.backdrop == CallBackdrop.companion && !_stageFailed;
     final (status, dots) = _status(l10n);
-    final error = _call.error;
+    final error = call?.error;
     final sessionId = switch (widget.conversation) {
       final ChatCallConversation chat => chat.sessionId,
       _ => null,
     };
     final width = MediaQuery.sizeOf(context).width;
     final lightSize = math.min(340.0, width * 0.86);
-    final hearing = _call.phase == CallPhase.hearing;
-    final heard = ended ? '' : _call.heard;
+    final hearing = call?.phase == CallPhase.hearing;
+    final heard = ended || call == null ? '' : call.heard;
     // While the person speaks, her last words step aside for theirs.
-    final reply = hearing ? '' : speakable(_call.caption).replaceAll('\n', ' ');
+    final reply = hearing || call == null ? '' : speakable(call.caption).replaceAll('\n', ' ');
     final failing = ended ? null : error;
     // Light or dark as the theme is; a picture or her behind always reads as dark.
     final dark = theme.brightness == Brightness.dark || image != null || her;
@@ -558,10 +610,17 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                           live: !ended && _since != null,
                           blur: keyBlur,
                           onTranscript: _openTranscript,
-                          onBackdrop: ended
+                          onBackdrop: ended || call == null
                               ? null
                               // Trying voices out plays on her speaker: she stops this reply first.
-                              : () => unawaited(showCallBackdropSheet(context, inCall: true, beforeVoice: _call.skip)),
+                              : () => unawaited(
+                                  showCallBackdropSheet(
+                                    context,
+                                    inCall: true,
+                                    beforeVoice: call.skip,
+                                    realtime: _realtime,
+                                  ),
+                                ),
                         ),
                         distance: -14,
                       ),
@@ -587,18 +646,18 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                         CallStatus(
                           text: status,
                           dots: dots,
-                          color: ended && _call.ended != CallEnd.hungUp ? ink.warn : null,
+                          color: ended && call?.ended != CallEnd.hungUp ? ink.warn : null,
                         ),
                       ),
                       const SizedBox(height: 14),
                       // What is being said, as much of it as fits; a tap opens all of it.
                       Semantics(
-                        button: _call.turns.isNotEmpty,
-                        hint: _call.turns.isNotEmpty ? l10n.speechCallTranscriptHint : null,
+                        button: call != null && call.turns.isNotEmpty,
+                        hint: call != null && call.turns.isNotEmpty ? l10n.speechCallTranscriptHint : null,
                         child: GestureDetector(
                           key: const ValueKey('call-captions'),
                           behavior: HitTestBehavior.opaque,
-                          onTap: _call.turns.isEmpty ? null : _openTranscript,
+                          onTap: call == null || call.turns.isEmpty ? null : _openTranscript,
                           child: _grow(
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -621,7 +680,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                                       RevealText(
                                         key: const ValueKey('call-reply'),
                                         text: reply,
-                                        done: _call.phase != CallPhase.speaking,
+                                        done: call?.phase != CallPhase.speaking,
                                         style: theme.textTheme.bodyLarge?.copyWith(
                                           color: ink.fg.withValues(alpha: 0.94),
                                           height: 1.6,
@@ -649,11 +708,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                             0.4,
                             CallKey(
                               key: const ValueKey('call-mute'),
-                              icon: _call.muted ? AppIcons.micMuted : AppIcons.voice,
-                              label: _call.muted ? l10n.speechCallUnmute : l10n.speechCallMute,
-                              on: _call.muted,
+                              icon: call?.muted == true ? AppIcons.micMuted : AppIcons.voice,
+                              label: call?.muted == true ? l10n.speechCallUnmute : l10n.speechCallMute,
+                              on: call?.muted == true,
                               blur: keyBlur,
-                              onTap: ended ? null : () => _call.setMuted(!_call.muted),
+                              onTap: ended || call == null ? null : () => call.setMuted(!call.muted),
                             ),
                             distance: 28,
                           ),
@@ -663,7 +722,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                               key: const ValueKey('call-hang-up'),
                               icon: AppIcons.hangUp,
                               label: l10n.speechCallHangUp,
-                              onTap: ended ? null : _hangUp,
+                              onTap: ended || call == null ? null : _hangUp,
                             ),
                             distance: 34,
                           ),
@@ -671,11 +730,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                             0.56,
                             CallKey(
                               key: const ValueKey('call-speaker'),
-                              icon: _call.speaker ? AppIcons.readAloud : AppIcons.earpiece,
-                              label: _call.speaker ? l10n.speechCallSpeakerOn : l10n.speechCallEarpiece,
-                              on: _call.speaker,
+                              icon: call?.speaker != false ? AppIcons.readAloud : AppIcons.earpiece,
+                              label: call?.speaker != false ? l10n.speechCallSpeakerOn : l10n.speechCallEarpiece,
+                              on: call?.speaker != false,
                               blur: keyBlur,
-                              onTap: ended ? null : () => unawaited(_call.setSpeaker(!_call.speaker)),
+                              onTap: ended || call == null ? null : () => unawaited(call.setSpeaker(!call.speaker)),
                             ),
                             distance: 28,
                           ),
