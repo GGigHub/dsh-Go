@@ -34394,54 +34394,6 @@ abstract class L10n {
   /// **'验证失败：{error}'**
   String speechRealtimeVerifyFailed(String error);
 
-  /// No description provided for @speechRealtimeWakeEnabled.
-  ///
-  /// In zh, this message translates to:
-  /// **'语音唤醒'**
-  String get speechRealtimeWakeEnabled;
-
-  /// No description provided for @speechRealtimeWakeEnabledHint.
-  ///
-  /// In zh, this message translates to:
-  /// **'后台听唤醒词，说中后像小艺一样进入语音通话（需麦克风与通知）'**
-  String get speechRealtimeWakeEnabledHint;
-
-  /// No description provided for @speechRealtimeWakePhraseLabel.
-  ///
-  /// In zh, this message translates to:
-  /// **'唤醒词'**
-  String get speechRealtimeWakePhraseLabel;
-
-  /// No description provided for @speechRealtimeWakePhraseHelper.
-  ///
-  /// In zh, this message translates to:
-  /// **'尽量短，例如 小助手'**
-  String get speechRealtimeWakePhraseHelper;
-
-  /// No description provided for @speechRealtimeWakeNeedMic.
-  ///
-  /// In zh, this message translates to:
-  /// **'语音唤醒需要麦克风权限'**
-  String get speechRealtimeWakeNeedMic;
-
-  /// No description provided for @speechRealtimeWakeNeedRealtime.
-  ///
-  /// In zh, this message translates to:
-  /// **'请先打开 Realtime 并填好 API Key'**
-  String get speechRealtimeWakeNeedRealtime;
-
-  /// No description provided for @speechRealtimeWakeFailed.
-  ///
-  /// In zh, this message translates to:
-  /// **'语音唤醒异常：{error}'**
-  String speechRealtimeWakeFailed(String error);
-
-  /// No description provided for @speechRealtimeWakeListening.
-  ///
-  /// In zh, this message translates to:
-  /// **'已开始听唤醒词，可说「{phrase}」或点通知「开始通话」'**
-  String speechRealtimeWakeListening(String phrase);
-
   /// No description provided for @speechRealtimeCallKeepTitle.
   ///
   /// In zh, this message translates to:

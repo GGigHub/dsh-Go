@@ -1,4 +1,4 @@
-// Android microphone FGS bridge for Realtime call keep-alive and wake phrase.
+// Android microphone FGS bridge for Realtime call keep-alive.
 
 import 'dart:async';
 
@@ -13,19 +13,8 @@ sealed class RealtimeKeepEvent {
   const RealtimeKeepEvent();
 }
 
-final class RealtimeWakeEvent extends RealtimeKeepEvent {
-  const RealtimeWakeEvent({required this.phrase, this.heard = ''});
-  final String phrase;
-  final String heard;
-}
-
 final class RealtimeHangUpEvent extends RealtimeKeepEvent {
   const RealtimeHangUpEvent();
-}
-
-final class RealtimeWakeErrorEvent extends RealtimeKeepEvent {
-  const RealtimeWakeErrorEvent(this.message);
-  final String message;
 }
 
 class RealtimeKeep {
@@ -47,31 +36,6 @@ class RealtimeKeep {
     }
   }
 
-  Future<bool> wakeRunning() async {
-    try {
-      return await _channel.invokeMethod<bool>('wakeRunning') ?? false;
-    } on Object {
-      return false;
-    }
-  }
-
-  /// Pending wake stashed by native while Flutter was not ready; clears it.
-  Future<RealtimeWakeEvent?> consumePendingWake() async {
-    try {
-      final raw = await _channel.invokeMethod<dynamic>('consumePendingWake');
-      if (raw is! Map) return null;
-      final event = RealtimeWakeEvent(
-        phrase: '${raw['phrase'] ?? ''}',
-        heard: '${raw['heard'] ?? ''}',
-      );
-      realtimeLog('keep consumePendingWake phraseLen=${event.phrase.length}');
-      return event;
-    } on Object catch (e) {
-      realtimeLog('keep consumePendingWake failed: $e');
-      return null;
-    }
-  }
-
   Future<void> startCallKeep({required String title, required String text}) async {
     realtimeLog('keep startCallKeep');
     await _channel.invokeMethod<void>('startCallKeep', {'title': title, 'text': text});
@@ -82,36 +46,13 @@ class RealtimeKeep {
     await _channel.invokeMethod<void>('stopCallKeep');
   }
 
-  Future<void> startWake(String phrase) async {
-    realtimeLog('keep startWake phraseLen=${phrase.trim().length}');
-    await _channel.invokeMethod<void>('startWake', {'phrase': phrase.trim()});
-  }
-
-  Future<void> stopWake() async {
-    realtimeLog('keep stopWake');
-    await _channel.invokeMethod<void>('stopWake');
-  }
-
   Future<void> _onCall(MethodCall call) async {
     if (call.method != 'event') return;
     final args = call.arguments;
     if (args is! Map) return;
-    final event = switch (args['type']) {
-      'wake' => RealtimeWakeEvent(
-        phrase: '${args['phrase'] ?? ''}',
-        heard: '${args['heard'] ?? ''}',
-      ),
-      'hangUp' => const RealtimeHangUpEvent(),
-      'wakeError' => RealtimeWakeErrorEvent('${args['message'] ?? 'wake error'}'),
-      _ => null,
-    };
-    if (event != null) {
-      if (event is RealtimeWakeEvent) {
-        realtimeLog('keep event wake heardLen=${event.heard.length}');
-      } else if (event is RealtimeWakeErrorEvent) {
-        realtimeLog('keep event wakeError ${event.message}');
-      }
-      _events.add(event);
+    if (args['type'] == 'hangUp') {
+      realtimeLog('keep event hangUp');
+      _events.add(const RealtimeHangUpEvent());
     }
   }
 
@@ -127,5 +68,5 @@ final realtimeKeepProvider = Provider<RealtimeKeep>((ref) {
   return keep;
 });
 
-/// Android-only: wake / call-keep FGS. Other platforms no-op.
+/// Android-only: call-keep FGS. Other platforms no-op.
 bool realtimeKeepAvailable(WidgetRef ref) => ref.watch(operatingSystemProvider) == 'android';

@@ -56,7 +56,7 @@ import 'call/call_transcript.dart';
 import 'call/call_visuals.dart';
 import 'speech_ui.dart';
 
-/// Route name for [VoiceCallPage]; wake host skips opening a second one.
+/// Route name for [VoiceCallPage].
 const voiceCallRouteName = 'voice-call';
 
 /// Opens a call with the main chat's conversation. [session] gives its id,
@@ -96,7 +96,7 @@ class VoiceCallPage extends ConsumerStatefulWidget {
   final String title;
   final CallConversation conversation;
 
-  /// How many call pages are currently mounted (wake host skips a second push).
+  /// How many call pages are currently mounted.
   static int openCount = 0;
 
   static bool get isOpen => openCount > 0;

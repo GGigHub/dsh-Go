@@ -189,7 +189,6 @@ class RealtimeCallController extends CallController {
     final bridge = keep;
     if (bridge == null) return;
     try {
-      await bridge.stopWake();
       await bridge.startCallKeep(title: keepTitle, text: keepText);
     } on Object catch (e) {
       realtimeLog('call keep failed: $e');
@@ -456,14 +455,6 @@ class RealtimeCallController extends CallController {
       await keep?.stopCallKeep();
     } on Object catch (e) {
       realtimeLog('stopCallKeep failed: $e');
-    }
-    // Call keep stopped wake; put it back if still enabled.
-    if (settings.wakeEnabled && settings.wakePhrase.trim().isNotEmpty) {
-      try {
-        await keep?.startWake(settings.wakePhrase);
-      } on Object catch (e) {
-        realtimeLog('restart wake after call failed: $e');
-      }
     }
   }
 

@@ -28,9 +28,6 @@ const qwenRealtimeDefaultLanBase = 'ws://192.168.1.10:8765/v1/realtime';
 const qwenRealtimeLegacyDefaultModel = 'qwen-audio-3.1-realtime-flash';
 const qwenRealtimeLegacyDefaultVoice = 'longanqian_v3.1';
 
-/// Short phrase (小艺-style); long sentences are hard for background ASR.
-const qwenRealtimeDefaultWakePhrase = '小助手';
-
 /// How voice calls are wired. All three keep DSH as the agent brain when used
 /// through the call page (turn-based via ChatCall; Realtime modes via delegate).
 enum VoiceCallMode {
@@ -58,8 +55,6 @@ class QwenRealtimeSettings {
     this.model = qwenRealtimeDefaultModel,
     this.voice = qwenRealtimeDefaultVoice,
     this.mode = VoiceCallMode.cloudRealtime,
-    this.wakeEnabled = false,
-    this.wakePhrase = qwenRealtimeDefaultWakePhrase,
   });
 
   final String base;
@@ -69,10 +64,6 @@ class QwenRealtimeSettings {
 
   /// Which of the three call schemes to use.
   final VoiceCallMode mode;
-
-  /// Android: listen for [wakePhrase] in a mic FGS and open a Realtime call.
-  final bool wakeEnabled;
-  final String wakePhrase;
 
   /// Realtime transport is used for cloud and LAN modes.
   bool get enabled => mode != VoiceCallMode.turnBased;
@@ -137,16 +128,12 @@ class QwenRealtimeSettings {
     String? model,
     String? voice,
     VoiceCallMode? mode,
-    bool? wakeEnabled,
-    String? wakePhrase,
   }) => QwenRealtimeSettings(
     base: base ?? this.base,
     key: key ?? this.key,
     model: model ?? this.model,
     voice: voice ?? this.voice,
     mode: mode ?? this.mode,
-    wakeEnabled: wakeEnabled ?? this.wakeEnabled,
-    wakePhrase: wakePhrase ?? this.wakePhrase,
   );
 }
 
@@ -240,10 +227,6 @@ class QwenRealtimeSettingsController extends Notifier<QwenRealtimeSettings> {
             ? json['voice'] as String
             : qwenRealtimeDefaultVoice,
         mode: mode,
-        wakeEnabled: json is Map && json['wakeEnabled'] == true,
-        wakePhrase: json is Map && json['wakePhrase'] is String && (json['wakePhrase'] as String).trim().isNotEmpty
-            ? (json['wakePhrase'] as String).trim()
-            : qwenRealtimeDefaultWakePhrase,
       );
       // Bump first-shipped Audio defaults to Omni so users who only paste a Key work.
       if (next.model == qwenRealtimeLegacyDefaultModel) {
@@ -291,10 +274,6 @@ class QwenRealtimeSettingsController extends Notifier<QwenRealtimeSettings> {
         'mode': cleaned.mode.name,
         // Kept for older builds that only read the boolean.
         'enabled': cleaned.enabled,
-        'wakeEnabled': cleaned.wakeEnabled,
-        'wakePhrase': cleaned.wakePhrase.trim().isEmpty
-            ? qwenRealtimeDefaultWakePhrase
-            : cleaned.wakePhrase.trim(),
       }),
     );
     if (before.key != cleaned.key) {
