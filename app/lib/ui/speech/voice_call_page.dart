@@ -28,6 +28,7 @@ import '../../speech/call/voice_call.dart';
 import '../../speech/deepseek_speech.dart';
 import '../../speech/read_aloud.dart';
 import '../../speech/realtime/qwen_realtime_settings.dart';
+import '../../speech/realtime/realtime_keep.dart';
 import '../../speech/speech_audio.dart';
 import '../../speech/speech_out.dart';
 import '../../speech/speech_settings.dart';
@@ -55,6 +56,9 @@ import 'call/call_transcript.dart';
 import 'call/call_visuals.dart';
 import 'speech_ui.dart';
 
+/// Route name for [VoiceCallPage]; wake host skips opening a second one.
+const voiceCallRouteName = 'voice-call';
+
 /// Opens a call with the main chat's conversation. [session] gives its id,
 /// creating it for a new chat; [title] heads the page.
 Future<void> openChatCall(
@@ -66,6 +70,7 @@ Future<void> openChatCall(
   container.read(readAloudProvider.notifier).stop();
   await Navigator.of(context).push(
     PageRouteBuilder<void>(
+      settings: const RouteSettings(name: voiceCallRouteName),
       opaque: true,
       fullscreenDialog: true,
       transitionDuration: AppMotion.of(context, const Duration(milliseconds: 520)),
@@ -91,6 +96,11 @@ class VoiceCallPage extends ConsumerStatefulWidget {
   final String title;
   final CallConversation conversation;
 
+  /// How many call pages are currently mounted (wake host skips a second push).
+  static int openCount = 0;
+
+  static bool get isOpen => openCount > 0;
+
   @override
   ConsumerState<VoiceCallPage> createState() => _VoiceCallPageState();
 }
@@ -99,6 +109,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   CallController? _callOrNull;
   CallController get _call => _callOrNull!;
   bool _realtime = false;
+  StreamSubscription<RealtimeKeepEvent>? _keepSub;
   final _scene = CallScene();
   late final AnimationController _enter = AnimationController(
     vsync: this,
@@ -125,6 +136,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   @override
   void initState() {
     super.initState();
+    VoiceCallPage.openCount++;
     WidgetsBinding.instance.addObserver(this);
     final voices = ref.read(speechVoiceSettingsProvider.notifier);
     // The chosen voice, as soon as the settings have been read (the first reply comes later).
@@ -204,7 +216,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
       _realtime = true;
       await _settleVoice(warm: true);
       if (!mounted) return;
-      // Realtime: cloud VAD/ASR; DSH chat path keeps context, memory and tools.
+      // Realtime: cloud/LAN VAD/ASR; DSH chat path keeps context, memory and tools.
+      final keep = ref.read(realtimeKeepProvider);
+      final l10n = appL10n;
       _callOrNull = RealtimeCallController(
         audio: audio,
         pcm: ref.read(streamingPcmCaptureProvider),
@@ -215,8 +229,15 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
         permission: permission,
         cutNote: cut,
         thinkingCue: cue,
+        keep: keep,
+        keepTitle: l10n.speechRealtimeCallKeepTitle,
+        keepText: l10n.speechRealtimeCallKeepText,
       )..addListener(_changed);
       ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
+      _keepSub?.cancel();
+      _keepSub = keep.events.listen((event) {
+        if (event is RealtimeHangUpEvent) _callOrNull?.hangUp();
+      });
     } else {
       _callOrNull = VoiceCallController(
         audio: audio,
@@ -352,6 +373,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_keepSub?.cancel());
     unawaited(_live?.stop());
     _leave?.cancel();
     _enter.dispose();
@@ -362,6 +384,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
         ..dispose();
     }
     _scene.dispose();
+    VoiceCallPage.openCount = (VoiceCallPage.openCount - 1).clamp(0, 1 << 30);
     super.dispose();
   }
 

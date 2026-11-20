@@ -10,6 +10,7 @@ import '../../voice/streaming_pcm.dart';
 import '../realtime/qwen_realtime_log.dart';
 import '../realtime/qwen_realtime_session.dart';
 import '../realtime/qwen_realtime_settings.dart';
+import '../realtime/realtime_keep.dart';
 import '../speech_audio.dart';
 import '../speech_out.dart';
 import 'voice_call.dart';
@@ -27,6 +28,9 @@ class RealtimeCallController extends CallController {
     this.thinkingCue,
     this.sessionFactory,
     this.cueAfter = const Duration(milliseconds: 1200),
+    this.keep,
+    this.keepTitle = 'Voice call',
+    this.keepText = 'Realtime call in progress',
   });
 
   final SpeechAudio audio;
@@ -40,6 +44,9 @@ class RealtimeCallController extends CallController {
   final Future<void> Function()? thinkingCue;
   final QwenRealtimeSession Function()? sessionFactory;
   final Duration cueAfter;
+  final RealtimeKeep? keep;
+  final String keepTitle;
+  final String keepText;
 
   QwenRealtimeSession? _session;
   StreamSubscription<QwenRealtimeEvent>? _sessionSub;
@@ -169,11 +176,23 @@ class RealtimeCallController extends CallController {
           }
           _session?.appendPcm(frame);
         });
+        unawaited(_startKeep());
         _set(CallPhase.listening);
       case CallStart.permission:
         _end(CallEnd.permission);
       case CallStart.microphone || CallStart.unavailable:
         _end(CallEnd.microphone);
+    }
+  }
+
+  Future<void> _startKeep() async {
+    final bridge = keep;
+    if (bridge == null) return;
+    try {
+      await bridge.stopWake();
+      await bridge.startCallKeep(title: keepTitle, text: keepText);
+    } on Object catch (e) {
+      realtimeLog('call keep failed: $e');
     }
   }
 
@@ -370,7 +389,8 @@ class RealtimeCallController extends CallController {
 
   @override
   void backgrounded() {
-    if (!_asking) _end(CallEnd.background);
+    // Realtime keeps the mic via FGS; leaving the screen must not hang up.
+    realtimeLog('backgrounded ignored (call keep)');
   }
 
   @override
@@ -432,6 +452,19 @@ class RealtimeCallController extends CallController {
     await audio.stopCall();
     await _session?.close();
     _session = null;
+    try {
+      await keep?.stopCallKeep();
+    } on Object catch (e) {
+      realtimeLog('stopCallKeep failed: $e');
+    }
+    // Call keep stopped wake; put it back if still enabled.
+    if (settings.wakeEnabled && settings.wakePhrase.trim().isNotEmpty) {
+      try {
+        await keep?.startWake(settings.wakePhrase);
+      } on Object catch (e) {
+        realtimeLog('restart wake after call failed: $e');
+      }
+    }
   }
 
   void _set(CallPhase phase) {

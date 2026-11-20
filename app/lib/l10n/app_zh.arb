@@ -11161,6 +11161,31 @@
       }
     }
   },
+  "speechRealtimeWakeEnabled": "语音唤醒",
+  "speechRealtimeWakeEnabledHint": "后台听唤醒词，说中后像小艺一样进入语音通话（需麦克风与通知）",
+  "speechRealtimeWakePhraseLabel": "唤醒词",
+  "speechRealtimeWakePhraseHelper": "尽量短，例如 小助手",
+  "speechRealtimeWakeNeedMic": "语音唤醒需要麦克风权限",
+  "speechRealtimeWakeNeedRealtime": "请先打开 Realtime 并填好 API Key",
+  "speechRealtimeWakeFailed": "语音唤醒异常：{error}",
+  "@speechRealtimeWakeFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "speechRealtimeWakeListening": "已开始听唤醒词，可说「{phrase}」或点通知「开始通话」",
+  "@speechRealtimeWakeListening": {
+    "placeholders": {
+      "phrase": {
+        "type": "String"
+      }
+    }
+  },
+  "speechRealtimeCallKeepTitle": "语音通话中",
+  "speechRealtimeCallKeepText": "Realtime 全双工通话进行中",
+  "speechCallEndBackgroundRealtime": "已切到后台，通话继续（通知栏可挂断）",
   "speechCallHint": "（这是语音通话，我说的话由语音识别转成文字。请用简短、口语化的中文回答，不要用 Markdown、列表、表格和代码块。）",
   "speechCallCutNote": "（你说到「{heard}」时我打断了你，后面的我没听到。）",
   "@speechCallCutNote": {

@@ -19756,6 +19756,44 @@ class L10nEn extends L10n {
   }
 
   @override
+  String get speechRealtimeWakeEnabled => 'Voice wake';
+
+  @override
+  String get speechRealtimeWakeEnabledHint =>
+      'Listen for a wake phrase in the background and open a Realtime call (needs mic + notification)';
+
+  @override
+  String get speechRealtimeWakePhraseLabel => 'Wake phrase';
+
+  @override
+  String get speechRealtimeWakePhraseHelper => 'Keep it short, e.g. hey assistant';
+
+  @override
+  String get speechRealtimeWakeNeedMic => 'Voice wake needs microphone access';
+
+  @override
+  String get speechRealtimeWakeNeedRealtime => 'Turn on Realtime and fill in an API Key first';
+
+  @override
+  String speechRealtimeWakeFailed(String error) {
+    return 'Voice wake error: $error';
+  }
+
+  @override
+  String speechRealtimeWakeListening(String phrase) {
+    return 'Listening — say “$phrase” or tap Start call on the notification';
+  }
+
+  @override
+  String get speechRealtimeCallKeepTitle => 'Voice call';
+
+  @override
+  String get speechRealtimeCallKeepText => 'Realtime call in progress';
+
+  @override
+  String get speechCallEndBackgroundRealtime => 'In background — call continues (hang up from the notification)';
+
+  @override
   String get speechCallHint =>
       '(This is a voice call; what I say comes through speech recognition. Please answer briefly and conversationally, without Markdown, lists, tables or code blocks.)';
 
