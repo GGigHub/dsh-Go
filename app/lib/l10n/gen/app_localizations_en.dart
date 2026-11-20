@@ -19877,7 +19877,7 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallFooter =>
-      'In a call, pause after you speak and it is sent; the answer is read while it is written.';
+      'All three call modes use the current chat\'s agent (context, memory, tools). Pick a mode above.';
 
   @override
   String get speechCallBargeIn => 'Interrupt by speaking';
@@ -19897,6 +19897,91 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallSpeakerHint => 'Headphones always win when connected';
+
+  @override
+  String get speechRealtimeSection => 'Voice call mode';
+
+  @override
+  String get speechRealtimeFooter =>
+      'Turn-based: phone/cloud ASR. Cloud: Bailian Realtime transcription (API key; Omni needs a workspace host). LAN: host STT at ws://HOST:PORT/v1/realtime (key optional). Brain is always DSH. Logs: adb logcat | grep dsh.realtime';
+
+  @override
+  String get speechCallModeLabel => 'Call mode';
+
+  @override
+  String get speechCallModeTurnBased => 'Turn-based';
+
+  @override
+  String get speechCallModeCloud => 'Cloud';
+
+  @override
+  String get speechCallModeLan => 'LAN';
+
+  @override
+  String get speechCallModeHintTurnBased => 'Pause-to-send; uses the recognizer and voice from Speech settings';
+
+  @override
+  String get speechCallModeHintCloud => 'Bailian Realtime for listening; replies still go through DSH and app TTS';
+
+  @override
+  String get speechCallModeHintLan => 'Host VAD/STT for listening; replies still go through DSH and app TTS';
+
+  @override
+  String get speechRealtimeEnabled => 'Use Realtime calls';
+
+  @override
+  String get speechRealtimeEnabledHint => 'When on: Bailian needs a key; LAN only needs a reachable endpoint';
+
+  @override
+  String get speechRealtimeBaseHelper =>
+      'LAN e.g. ws://192.168.1.10:8765/v1/realtime; Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+
+  @override
+  String get speechRealtimeModelHelper => 'LAN: host-agreed id; Bailian default qwen3.8-omni-flash-realtime';
+
+  @override
+  String get speechRealtimeVoiceHelper => 'Cloud Realtime voice field; spoken replies use Companion/call voice';
+
+  @override
+  String get speechRealtimeKeyLabel => 'API key (cloud only)';
+
+  @override
+  String get speechRealtimeBaseLabel => 'Endpoint';
+
+  @override
+  String get speechRealtimeModelLabel => 'Model';
+
+  @override
+  String get speechRealtimeVoiceLabel => 'Voice';
+
+  @override
+  String get speechRealtimeVerify => 'Verify connection';
+
+  @override
+  String get speechRealtimeVerifyNeedKey => 'Enter an API key for cloud mode first';
+
+  @override
+  String get speechRealtimeVerifyNeedEndpoint => 'Enter a valid endpoint (ws:// or wss://) first';
+
+  @override
+  String get speechRealtimeVerifyNeedLan => 'LAN mode needs a ws:// or private-IP endpoint';
+
+  @override
+  String get speechRealtimeVerifyOk => 'Connected — you can start a voice call';
+
+  @override
+  String speechRealtimeVerifyFailed(String error) {
+    return 'Verification failed: $error';
+  }
+
+  @override
+  String get speechRealtimeCallKeepTitle => 'Voice call';
+
+  @override
+  String get speechRealtimeCallKeepText => 'Call in progress';
+
+  @override
+  String get speechCallEndBackgroundRealtime => 'In background — call continues (hang up from the notification)';
 
   @override
   String get speechCallHint =>

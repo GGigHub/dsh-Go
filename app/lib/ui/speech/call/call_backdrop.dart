@@ -174,18 +174,21 @@ class _CompanionBackdropState extends ConsumerState<CompanionBackdrop> {
 /// The three backdrops side by side; picking one applies it at once.
 /// [inCall]: opened from a call, which also offers her voice and the
 /// recognition; [beforeVoice] runs before her voice's page opens.
-Future<void> showCallBackdropSheet(BuildContext context, {bool inCall = false, VoidCallback? beforeVoice}) =>
-    showAppSheet<void>(
-      context,
-      isScrollControlled: true,
-      // Scrolls on a short screen (a phone on its side): the in-call rows are below the fold there.
-      builder: (sheet) => SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          child: _BackdropChooser(inCall: inCall, beforeVoice: beforeVoice),
-        ),
-      ),
-    );
+Future<void> showCallBackdropSheet(
+  BuildContext context, {
+  bool inCall = false,
+  VoidCallback? beforeVoice,
+}) => showAppSheet<void>(
+  context,
+  isScrollControlled: true,
+  // Scrolls on a short screen (a phone on its side): the in-call rows are below the fold there.
+  builder: (sheet) => SafeArea(
+    top: false,
+    child: SingleChildScrollView(
+      child: _BackdropChooser(inCall: inCall, beforeVoice: beforeVoice),
+    ),
+  ),
+);
 
 class _BackdropChooser extends ConsumerStatefulWidget {
   const _BackdropChooser({required this.inCall, this.beforeVoice});
@@ -333,8 +336,9 @@ class _BackdropChooserState extends ConsumerState<_BackdropChooser> {
                   onTap: () {
                     widget.beforeVoice?.call();
                     unawaited(
-                      Navigator.of(context)
-                          .push(MaterialPageRoute<void>(builder: (_) => const CompanionVoicePage(shared: true))),
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const CompanionVoicePage(shared: true)),
+                      ),
                     );
                   },
                 ),

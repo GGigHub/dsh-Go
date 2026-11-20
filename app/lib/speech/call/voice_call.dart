@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../diagnostics/diagnostics_channel.dart';
+import '../realtime/realtime_keep.dart';
 import '../speech_audio.dart';
 import '../speech_out.dart';
 import '../voice_cloud.dart';
@@ -89,7 +90,33 @@ class CallTurn {
   final bool cut;
 }
 
-class VoiceCallController extends ChangeNotifier {
+/// What the call page drives: legacy turn-based or Qwen Realtime.
+abstract class CallController extends ChangeNotifier {
+  CallPhase get phase;
+  CallEnd? get ended;
+  bool get muted;
+  bool get speaker;
+  double get micLevel;
+  double get voiceLevel;
+  String get heard;
+  String get caption;
+  bool get cueStill;
+  Object? get error;
+  List<CallTurn> get turns;
+  bool get asking;
+
+  Future<void> start();
+  void hangUp();
+  void backgrounded();
+  void setMuted(bool on);
+  Future<void> setSpeaker(bool on);
+  void skip();
+  void live(String text);
+  Future<void> refreshRecognizer();
+  void setPause(CallPause pause);
+}
+
+class VoiceCallController extends CallController {
   VoiceCallController({
     required this.audio,
     required this.conversation,
@@ -101,6 +128,9 @@ class VoiceCallController extends ChangeNotifier {
     this.thinkingCue,
     this.confirmAfter = const Duration(milliseconds: 1600),
     this.cueAfter = const Duration(milliseconds: 1200),
+    this.keep,
+    this.keepTitle = 'Voice call',
+    this.keepText = 'Call in progress',
   });
 
   /// Talking on over her this long is taking the turn, whatever the words.
@@ -137,7 +167,13 @@ class VoiceCallController extends ChangeNotifier {
   /// Asks for the microphone (the system dialog); false when refused.
   final Future<bool> Function()? permission;
 
+  /// Android microphone FGS so the call survives the app going to the background.
+  final RealtimeKeep? keep;
+  final String keepTitle;
+  final String keepText;
+
   /// The microphone is being asked for: the dialog may pause the app.
+  @override
   bool get asking => _asking;
   bool _asking = false;
 
@@ -193,20 +229,29 @@ class VoiceCallController extends ChangeNotifier {
   final _turns = <CallTurn>[];
 
   /// The call so far, oldest first.
+  @override
   List<CallTurn> get turns => List.unmodifiable(_turns);
 
+  @override
   CallPhase get phase => _phase;
+  @override
   CallEnd? get ended => _ended;
+  @override
   bool get muted => _muted;
+  @override
   bool get speaker => _speaker;
+  @override
   double get micLevel => _micLevel;
+  @override
   double get voiceLevel => _voiceLevel;
 
   /// What the person is saying now (live), else what they said last (recognized).
+  @override
   String get heard => (_phase == CallPhase.hearing || _over) && _live.isNotEmpty ? _live : _heard;
 
   /// Words heard live by the phone's own recognizer. Over her voice, a few real
   /// words (not agreement) are enough: the person is taking the turn.
+  @override
   void live(String text) {
     if (_phase == CallPhase.ended) return;
     _live = text.trim();
@@ -219,17 +264,21 @@ class VoiceCallController extends ChangeNotifier {
 
   /// The reply as far as she has said it (nothing yet while her voice gets
   /// ready); all of it when there is no voice.
+  @override
   String get caption => _voiced || _out != null ? _said : _reply;
 
   /// The thinking cue may still play: nothing of the reply has a voice yet.
+  @override
   bool get cueStill => _phase == CallPhase.thinking && _out == null;
 
   /// The last thing that went wrong without ending the call (recognition,
   /// sending, the voice); cleared when the next turn starts.
+  @override
   Object? get error => _error;
 
   /// The recognition setting changed: what is said next goes to what it names
   /// now (if that can listen; else to the one already in use).
+  @override
   Future<void> refreshRecognizer() async {
     if (_phase == CallPhase.ended) return;
     final mine = ++_refreshing;
@@ -242,6 +291,7 @@ class VoiceCallController extends ChangeNotifier {
 
   int _refreshing = 0;
 
+  @override
   Future<void> start() async {
     unawaited(const DiagnosticsChannel().recordVoiceStage('call_started'));
     _replySub = conversation.replies.listen(_onReply);
@@ -290,6 +340,7 @@ class VoiceCallController extends ChangeNotifier {
     switch (started) {
       case CallStart.ok:
         unawaited(const DiagnosticsChannel().recordVoiceStage('capture_started'));
+        unawaited(_startKeep());
         if (audio.requiresSpeakerAck) {
           // A newer control can supersede this request while the call starts.
           // start() still waits for the current acknowledgement or call end.
@@ -305,6 +356,16 @@ class VoiceCallController extends ChangeNotifier {
         _end(CallEnd.permission);
       case CallStart.microphone || CallStart.unavailable:
         _end(CallEnd.microphone);
+    }
+  }
+
+  Future<void> _startKeep() async {
+    final bridge = keep;
+    if (bridge == null) return;
+    try {
+      await bridge.startCallKeep(title: keepTitle, text: keepText);
+    } on Object {
+      // Keep is best-effort: without it, [backgrounded] still ends the call.
     }
   }
 
@@ -542,6 +603,7 @@ class VoiceCallController extends ChangeNotifier {
   }
 
   /// The microphone hears nothing (and nothing is recorded) while muted.
+  @override
   void setMuted(bool on) {
     if (_phase == CallPhase.ended) return;
     _muted = on;
@@ -552,6 +614,7 @@ class VoiceCallController extends ChangeNotifier {
   }
 
   /// Changed in 通话设置: the next pause is judged by it (the one under way too).
+  @override
   void setPause(CallPause pause) {
     if (_phase == CallPhase.ended || pause == _pause) return;
     _pause = pause;
@@ -565,6 +628,7 @@ class VoiceCallController extends ChangeNotifier {
     unawaited(audio.callPause(pause));
   }
 
+  @override
   Future<void> setSpeaker(bool on) async {
     if (_phase == CallPhase.ended) return;
     if (audio.requiresSpeakerAck) {
@@ -607,6 +671,7 @@ class VoiceCallController extends ChangeNotifier {
   /// Tapped while she speaks: she stops, the reply goes on in the conversation.
   /// Before she has begun (her voice about to be tried out on the same
   /// speaker), she won't read this reply at all.
+  @override
   void skip() {
     if (_phase != CallPhase.speaking && _phase != CallPhase.thinking) return;
     // Thinking may still be making out what was said: that reply stays quiet too.
@@ -619,11 +684,14 @@ class VoiceCallController extends ChangeNotifier {
     _set(CallPhase.listening);
   }
 
+  @override
   void hangUp() => _end(CallEnd.hungUp);
 
-  /// The app went to the background: Android gives a backgrounded app no
-  /// microphone, so the call ends rather than listen to silence.
+  /// Without [keep], a backgrounded Android app loses the mic — end the call.
+  /// With keep (microphone FGS), stay on so turn-based can continue like Realtime.
+  @override
   void backgrounded() {
+    if (keep != null) return;
     if (!_asking) _end(CallEnd.background);
   }
 
@@ -638,10 +706,19 @@ class VoiceCallController extends ChangeNotifier {
     unawaited(audio.stopCall());
     unawaited(_replySub?.cancel());
     unawaited(_audioSub?.cancel());
+    unawaited(_stopKeep());
     _set(CallPhase.ended);
     final ready = _initialSpeaker;
     _initialSpeaker = null;
     ready?.complete();
+  }
+
+  Future<void> _stopKeep() async {
+    try {
+      await keep?.stopCallKeep();
+    } on Object {
+      // Ending the call matters more than a failed FGS teardown.
+    }
   }
 
   void _set(CallPhase phase) {
