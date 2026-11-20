@@ -21,9 +21,32 @@ const qwenRealtimeDefaultVoice = 'Tina';
 /// Bearer token sent when a LAN gateway has no API key configured.
 const qwenRealtimeLocalBearer = 'local';
 
+/// Suggested LAN endpoint placeholder (user replaces the host).
+const qwenRealtimeDefaultLanBase = 'ws://192.168.1.10:8765/v1/realtime';
+
 /// First-shipped defaults; migrate on load so old installs pick up Omni.
 const qwenRealtimeLegacyDefaultModel = 'qwen-audio-3.1-realtime-flash';
 const qwenRealtimeLegacyDefaultVoice = 'longanqian_v3.1';
+
+/// How voice calls are wired. All three keep DSH as the agent brain when used
+/// through the call page (turn-based via ChatCall; Realtime modes via delegate).
+enum VoiceCallMode {
+  /// Phone VAD → cloud/local ASR → DSH → App TTS.
+  turnBased,
+
+  /// Bailian Realtime VAD/ASR → DSH → App TTS.
+  cloudRealtime,
+
+  /// LAN host VAD/STT → DSH → App TTS.
+  lanHost,
+}
+
+VoiceCallMode voiceCallModeFromName(String? raw) => switch (raw) {
+  'turnBased' => VoiceCallMode.turnBased,
+  'lanHost' => VoiceCallMode.lanHost,
+  'cloudRealtime' => VoiceCallMode.cloudRealtime,
+  _ => VoiceCallMode.cloudRealtime,
+};
 
 class QwenRealtimeSettings {
   const QwenRealtimeSettings({
@@ -31,7 +54,7 @@ class QwenRealtimeSettings {
     this.key = '',
     this.model = qwenRealtimeDefaultModel,
     this.voice = qwenRealtimeDefaultVoice,
-    this.enabled = true,
+    this.mode = VoiceCallMode.cloudRealtime,
   });
 
   final String base;
@@ -39,8 +62,11 @@ class QwenRealtimeSettings {
   final String model;
   final String voice;
 
-  /// When false, calls stay on the legacy turn-based path even if a key is set.
-  final bool enabled;
+  /// Which of the three call schemes to use.
+  final VoiceCallMode mode;
+
+  /// Realtime transport is used for cloud and LAN modes.
+  bool get enabled => mode != VoiceCallMode.turnBased;
 
   /// LAN / loopback gateway (cleartext `ws://` or private-IP `wss://`).
   /// Local mode does not require a Bailian `sk-` key.
@@ -54,12 +80,18 @@ class QwenRealtimeSettings {
     return _isPrivateIpv4(host);
   }
 
-  /// Cloud Bailian needs a key; LAN gateway only needs a reachable endpoint.
+  /// True when the selected mode can start a Realtime-backed call.
   bool get ready {
     if (!enabled || model.trim().isEmpty || base.trim().isEmpty) return false;
     if (websocketUri == null) return false;
-    if (isLocalLan) return true;
-    return key.trim().isNotEmpty;
+    switch (mode) {
+      case VoiceCallMode.turnBased:
+        return false;
+      case VoiceCallMode.lanHost:
+        return isLocalLan;
+      case VoiceCallMode.cloudRealtime:
+        return !isLocalLan && key.trim().isNotEmpty;
+    }
   }
 
   /// Qwen-Omni Realtime (e.g. qwen3.8-omni-flash-realtime) uses a different
@@ -95,14 +127,24 @@ class QwenRealtimeSettings {
     String? key,
     String? model,
     String? voice,
-    bool? enabled,
+    VoiceCallMode? mode,
   }) => QwenRealtimeSettings(
     base: base ?? this.base,
     key: key ?? this.key,
     model: model ?? this.model,
     voice: voice ?? this.voice,
-    enabled: enabled ?? this.enabled,
+    mode: mode ?? this.mode,
   );
+}
+
+bool _looksLocalLanBase(String base) {
+  final uri = Uri.tryParse(base.trim());
+  if (uri == null) return false;
+  if (uri.scheme == 'ws') return true;
+  final host = uri.host.toLowerCase();
+  if (host == 'localhost' || host == '127.0.0.1' || host == '::1') return true;
+  if (host.endsWith('.local')) return true;
+  return _isPrivateIpv4(host);
 }
 
 bool _isPrivateIpv4(String host) {
@@ -168,17 +210,23 @@ class QwenRealtimeSettingsController extends Notifier<QwenRealtimeSettings> {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_plainKey);
       final json = raw == null ? null : jsonDecode(raw);
+      final base = json is Map && json['base'] is String && (json['base'] as String).isNotEmpty
+          ? json['base'] as String
+          : qwenRealtimeDefaultBase;
+      final mode = json is Map && json['mode'] is String
+          ? voiceCallModeFromName(json['mode'] as String)
+          : (json is Map && json['enabled'] == false
+                ? VoiceCallMode.turnBased
+                : (_looksLocalLanBase(base) ? VoiceCallMode.lanHost : VoiceCallMode.cloudRealtime));
       var next = QwenRealtimeSettings(
-        base: json is Map && json['base'] is String && (json['base'] as String).isNotEmpty
-            ? json['base'] as String
-            : qwenRealtimeDefaultBase,
+        base: base,
         model: json is Map && json['model'] is String && (json['model'] as String).isNotEmpty
             ? json['model'] as String
             : qwenRealtimeDefaultModel,
         voice: json is Map && json['voice'] is String && (json['voice'] as String).isNotEmpty
             ? json['voice'] as String
             : qwenRealtimeDefaultVoice,
-        enabled: json is! Map || json['enabled'] != false,
+        mode: mode,
       );
       // Bump first-shipped Audio defaults to Omni so users who only paste a Key work.
       if (next.model == qwenRealtimeLegacyDefaultModel) {
@@ -223,6 +271,8 @@ class QwenRealtimeSettingsController extends Notifier<QwenRealtimeSettings> {
         'base': cleaned.base.trim().isEmpty ? qwenRealtimeDefaultBase : cleaned.base.trim(),
         'model': cleaned.model.trim().isEmpty ? qwenRealtimeDefaultModel : cleaned.model.trim(),
         'voice': cleaned.voice.trim().isEmpty ? qwenRealtimeDefaultVoice : cleaned.voice.trim(),
+        'mode': cleaned.mode.name,
+        // Kept for older builds that only read the boolean.
         'enabled': cleaned.enabled,
       }),
     );

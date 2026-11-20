@@ -4,9 +4,10 @@
 
 ## 行为
 
-- **设置 › 语音 › Qwen Realtime 全双工**：开关、API Key（安全存储，局域网可空）、WebSocket 地址、模型、音色。
-- **百炼**：开关打开且 Key 非空 → `RealtimeCallController`。
-- **局域网**：接入地址为 `ws://…` 或私网 IP 时视为 `isLocalLan`；无需 Key（发送 `Authorization: Bearer local`）；`session.update` 使用 PCM 音频形状。
+- **设置 › 语音 › 通话方式** 三选一：`轮次制` / `云端` / `局域网`（`VoiceCallMode`）。
+- **轮次制**：`VoiceCallController`（手机 VAD + 云端/本机 ASR + DSH + App TTS）。
+- **云端**：百炼 Realtime 听写；需 Key；`RealtimeCallController` → DSH → App TTS。
+- **局域网**：主机 STT；`ws://` / 私网；Key 可空（`Bearer local`）；同上委派 DSH。
 - **DSH 闭环**：`session.update` 打开 `input_audio_transcription`，并设 `turn_detection.create_response: false`（云端不自动答）。用户转写定稿后经 `ChatCallConversation` 送入当前会话；agent 回复流式朗读。插话打断走 `conversation.interrupt()`。
 - Realtime 下不适用：「停顿多久算说完」「口语回答」「思考提示音」「她的声音」「识别方式」——删除线并禁用（音色仍用通话/伙伴小屋已选的 `SpeechOut`）。
 - 切后台仍挂断。

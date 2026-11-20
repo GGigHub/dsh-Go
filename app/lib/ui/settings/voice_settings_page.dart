@@ -310,8 +310,21 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
     key: sanitizeRealtimeKey(_key.text),
     model: _model.text.trim(),
     voice: _voice.text.trim(),
-    enabled: ref.read(qwenRealtimeSettingsProvider).enabled,
+    mode: ref.read(qwenRealtimeSettingsProvider).mode,
   );
+
+  Future<void> _setMode(VoiceCallMode mode) async {
+    var next = _typed.copyWith(mode: mode);
+    // Swap a sensible default endpoint when switching cloud ↔ LAN.
+    if (mode == VoiceCallMode.lanHost && !next.isLocalLan) {
+      next = next.copyWith(base: qwenRealtimeDefaultLanBase);
+      _base.text = next.base;
+    } else if (mode == VoiceCallMode.cloudRealtime && next.isLocalLan) {
+      next = next.copyWith(base: qwenRealtimeDefaultBase);
+      _base.text = next.base;
+    }
+    await _store.update(next);
+  }
 
   @override
   void dispose() {
@@ -333,7 +346,12 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   Future<void> _verify() async {
     final l10n = context.l10n;
     final settings = _typed;
-    if (!settings.isLocalLan && settings.key.isEmpty) {
+    if (settings.mode == VoiceCallMode.turnBased) return;
+    if (settings.mode == VoiceCallMode.lanHost && !settings.isLocalLan) {
+      showBriefNotice(context, l10n.speechRealtimeVerifyNeedLan);
+      return;
+    }
+    if (settings.mode == VoiceCallMode.cloudRealtime && settings.key.isEmpty) {
       showBriefNotice(context, l10n.speechRealtimeVerifyNeedKey);
       return;
     }
@@ -357,35 +375,48 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
   @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
-    final enabled = ref.watch(qwenRealtimeSettingsProvider.select((s) => s.enabled));
+    final mode = ref.watch(qwenRealtimeSettingsProvider.select((s) => s.mode));
+    final modeHint = switch (mode) {
+      VoiceCallMode.turnBased => l10n.speechCallModeHintTurnBased,
+      VoiceCallMode.cloudRealtime => l10n.speechCallModeHintCloud,
+      VoiceCallMode.lanHost => l10n.speechCallModeHintLan,
+    };
+    final showEndpoint = mode != VoiceCallMode.turnBased;
+    final showKey = mode == VoiceCallMode.cloudRealtime;
     return SettingsSection(
       title: l10n.speechRealtimeSection,
       footer: Text(l10n.speechRealtimeFooter),
       children: [
-        SettingsSwitchTile(
-          key: const ValueKey('speech-realtime-enabled'),
-          title: l10n.speechRealtimeEnabled,
-          subtitle: l10n.speechRealtimeEnabledHint,
-          value: enabled,
-          onChanged: (on) => unawaited(_store.update(_typed.copyWith(enabled: on))),
+        SettingsSegmentTile<VoiceCallMode>(
+          key: const ValueKey('speech-call-mode'),
+          title: l10n.speechCallModeLabel,
+          subtitle: modeHint,
+          segments: [
+            PillSegment(VoiceCallMode.turnBased, l10n.speechCallModeTurnBased),
+            PillSegment(VoiceCallMode.cloudRealtime, l10n.speechCallModeCloud),
+            PillSegment(VoiceCallMode.lanHost, l10n.speechCallModeLan),
+          ],
+          selected: mode,
+          onChanged: (next) => unawaited(_setMode(next)),
         ),
-        if (_filled) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 8, SettingsMetrics.inset, 4),
-            child: TextField(
-              key: const ValueKey('speech-realtime-key'),
-              controller: _key,
-              obscureText: _obscure,
-              decoration: InputDecoration(
-                labelText: l10n.speechRealtimeKeyLabel,
-                suffixIcon: IconButton(
-                  icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
-                  onPressed: () => setState(() => _obscure = !_obscure),
+        if (_filled && showEndpoint) ...[
+          if (showKey)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 8, SettingsMetrics.inset, 4),
+              child: TextField(
+                key: const ValueKey('speech-realtime-key'),
+                controller: _key,
+                obscureText: _obscure,
+                decoration: InputDecoration(
+                  labelText: l10n.speechRealtimeKeyLabel,
+                  suffixIcon: IconButton(
+                    icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
                 ),
+                onChanged: (_) => _schedule(),
               ),
-              onChanged: (_) => _schedule(),
             ),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 8, SettingsMetrics.inset, 8),
             child: Align(
@@ -427,18 +458,19 @@ class _QwenRealtimeFormState extends ConsumerState<_QwenRealtimeForm> {
               onChanged: (_) => _schedule(),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 12),
-            child: TextField(
-              key: const ValueKey('speech-realtime-voice'),
-              controller: _voice,
-              decoration: InputDecoration(
-                labelText: l10n.speechRealtimeVoiceLabel,
-                helperText: l10n.speechRealtimeVoiceHelper,
+          if (showKey)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(SettingsMetrics.inset, 4, SettingsMetrics.inset, 12),
+              child: TextField(
+                key: const ValueKey('speech-realtime-voice'),
+                controller: _voice,
+                decoration: InputDecoration(
+                  labelText: l10n.speechRealtimeVoiceLabel,
+                  helperText: l10n.speechRealtimeVoiceHelper,
+                ),
+                onChanged: (_) => _schedule(),
               ),
-              onChanged: (_) => _schedule(),
             ),
-          ),
         ],
       ],
     );

@@ -19655,7 +19655,7 @@ class L10nEn extends L10n {
 
   @override
   String get speechCallFooter =>
-      'In a call, pause after you speak and it is sent; the answer is read while it is written. With Qwen Realtime configured, calls become full-duplex.';
+      'All three call modes use the current chat\'s agent (context, memory, tools). Pick a mode above.';
 
   @override
   String get speechCallBargeIn => 'Interrupt by speaking';
@@ -19677,11 +19677,32 @@ class L10nEn extends L10n {
   String get speechCallSpeakerHint => 'Headphones always win when connected';
 
   @override
-  String get speechRealtimeSection => 'Qwen Realtime (full duplex)';
+  String get speechRealtimeSection => 'Voice call mode';
 
   @override
   String get speechRealtimeFooter =>
-      'Bailian: set an API key (Omni needs a workspace host). LAN: set ws://HOST:PORT/v1/realtime; key optional. Logs: adb logcat | grep dsh.realtime';
+      'Turn-based: phone/cloud ASR. Cloud: Bailian Realtime transcription (API key; Omni needs a workspace host). LAN: host STT at ws://HOST:PORT/v1/realtime (key optional). Brain is always DSH. Logs: adb logcat | grep dsh.realtime';
+
+  @override
+  String get speechCallModeLabel => 'Call mode';
+
+  @override
+  String get speechCallModeTurnBased => 'Turn-based';
+
+  @override
+  String get speechCallModeCloud => 'Cloud';
+
+  @override
+  String get speechCallModeLan => 'LAN';
+
+  @override
+  String get speechCallModeHintTurnBased => 'Pause-to-send; uses the recognizer and voice from Speech settings';
+
+  @override
+  String get speechCallModeHintCloud => 'Bailian Realtime for listening; replies still go through DSH and app TTS';
+
+  @override
+  String get speechCallModeHintLan => 'Host VAD/STT for listening; replies still go through DSH and app TTS';
 
   @override
   String get speechRealtimeEnabled => 'Use Realtime calls';
@@ -19691,19 +19712,19 @@ class L10nEn extends L10n {
 
   @override
   String get speechRealtimeBaseHelper =>
-      'LAN e.g. ws://192.168.1.10:8091/v1/realtime; Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
+      'LAN e.g. ws://192.168.1.10:8765/v1/realtime; Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime';
 
   @override
-  String get speechRealtimeModelHelper => 'LAN e.g. minicpm-o-4_5; Bailian default qwen3.8-omni-flash-realtime';
+  String get speechRealtimeModelHelper => 'LAN: host-agreed id; Bailian default qwen3.8-omni-flash-realtime';
 
   @override
-  String get speechRealtimeVoiceHelper => 'Default Tina; LAN gateways may ignore';
+  String get speechRealtimeVoiceHelper => 'Cloud Realtime voice field; spoken replies use Companion/call voice';
 
   @override
-  String get speechRealtimeLegacyHint => 'Not used in Realtime calls (cloud/LAN gateway owns turn-taking)';
+  String get speechRealtimeLegacyHint => 'Not used when cloud/LAN transcription owns turn-taking';
 
   @override
-  String get speechRealtimeKeyLabel => 'API key (optional on LAN)';
+  String get speechRealtimeKeyLabel => 'API key (cloud only)';
 
   @override
   String get speechRealtimeBaseLabel => 'Endpoint';
@@ -19718,10 +19739,13 @@ class L10nEn extends L10n {
   String get speechRealtimeVerify => 'Verify connection';
 
   @override
-  String get speechRealtimeVerifyNeedKey => 'Enter an API key first';
+  String get speechRealtimeVerifyNeedKey => 'Enter an API key for cloud mode first';
 
   @override
   String get speechRealtimeVerifyNeedEndpoint => 'Enter a valid endpoint (ws:// or wss://) first';
+
+  @override
+  String get speechRealtimeVerifyNeedLan => 'LAN mode needs a ws:// or private-IP endpoint';
 
   @override
   String get speechRealtimeVerifyOk => 'Connected — you can start a voice call';

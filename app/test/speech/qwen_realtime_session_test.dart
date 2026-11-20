@@ -114,16 +114,25 @@ void main() {
     await session.close();
   });
 
-  test('settings ready requires key and enabled for cloud', () {
+  test('settings ready depends on call mode', () {
     expect(const QwenRealtimeSettings().ready, isFalse);
     expect(const QwenRealtimeSettings(key: 'k').ready, isTrue);
-    expect(const QwenRealtimeSettings(key: 'k', enabled: false).ready, isFalse);
+    expect(const QwenRealtimeSettings(key: 'k', mode: VoiceCallMode.turnBased).ready, isFalse);
+    expect(
+      const QwenRealtimeSettings(
+        key: 'k',
+        base: 'ws://192.168.1.10:8091/v1/realtime',
+        mode: VoiceCallMode.cloudRealtime,
+      ).ready,
+      isFalse,
+    );
   });
 
-  test('LAN endpoint is ready without Bailian key', () {
+  test('LAN mode is ready without Bailian key', () {
     const s = QwenRealtimeSettings(
       base: 'ws://192.168.1.10:8091/v1/realtime',
       model: 'minicpm-o-4_5',
+      mode: VoiceCallMode.lanHost,
     );
     expect(s.isLocalLan, isTrue);
     expect(s.ready, isTrue);
@@ -148,6 +157,7 @@ void main() {
       base: 'ws://10.0.0.2:8091/v1/realtime',
       model: 'minicpm-o-4_5',
       voice: 'default',
+      mode: VoiceCallMode.lanHost,
     );
     final opening = session.open(settings);
     await Future<void>.delayed(Duration.zero);
