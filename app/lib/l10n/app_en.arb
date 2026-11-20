@@ -5717,7 +5717,7 @@
   "speechRealtimeVerifyOk": "Connected — you can start a voice call",
   "speechRealtimeVerifyFailed": "Verification failed: {error}",
   "speechRealtimeCallKeepTitle": "Voice call",
-  "speechRealtimeCallKeepText": "Realtime call in progress",
+  "speechRealtimeCallKeepText": "Call in progress",
   "speechCallEndBackgroundRealtime": "In background — call continues (hang up from the notification)",
   "speechCallHint": "(This is a voice call; what I say comes through speech recognition. Please answer briefly and conversationally, without Markdown, lists, tables or code blocks.)",
   "speechCallCutNote": "(I cut you off at “{heard}”; I didn't hear the rest.)",

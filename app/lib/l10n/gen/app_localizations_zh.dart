@@ -18717,7 +18717,7 @@ class L10nZh extends L10n {
   String get speechRealtimeCallKeepTitle => '语音通话中';
 
   @override
-  String get speechRealtimeCallKeepText => 'Realtime 全双工通话进行中';
+  String get speechRealtimeCallKeepText => '通话进行中';
 
   @override
   String get speechCallEndBackgroundRealtime => '已切到后台，通话继续（通知栏可挂断）';

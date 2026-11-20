@@ -19756,7 +19756,7 @@ class L10nEn extends L10n {
   String get speechRealtimeCallKeepTitle => 'Voice call';
 
   @override
-  String get speechRealtimeCallKeepText => 'Realtime call in progress';
+  String get speechRealtimeCallKeepText => 'Call in progress';
 
   @override
   String get speechCallEndBackgroundRealtime => 'In background — call continues (hang up from the notification)';

@@ -212,13 +212,21 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
     }
     String cut(String heard) =>
         appNote(heard.isEmpty ? appL10n.speechCallCutEarly : appL10n.speechCallCutNote(heard));
+    final keep = realtimeKeepAvailable(ref) ? ref.read(realtimeKeepProvider) : null;
+    final l10n = appL10n;
+    void listenHangUp() {
+      if (keep == null) return;
+      _keepSub?.cancel();
+      _keepSub = keep.events.listen((event) {
+        if (event is RealtimeHangUpEvent) _callOrNull?.hangUp();
+      });
+    }
+
     if (realtime.ready) {
       _realtime = true;
       await _settleVoice(warm: true);
       if (!mounted) return;
       // Realtime: cloud/LAN VAD/ASR; DSH chat path keeps context, memory and tools.
-      final keep = ref.read(realtimeKeepProvider);
-      final l10n = appL10n;
       _callOrNull = RealtimeCallController(
         audio: audio,
         pcm: ref.read(streamingPcmCaptureProvider),
@@ -234,10 +242,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
         keepText: l10n.speechRealtimeCallKeepText,
       )..addListener(_changed);
       ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
-      _keepSub?.cancel();
-      _keepSub = keep.events.listen((event) {
-        if (event is RealtimeHangUpEvent) _callOrNull?.hangUp();
-      });
+      listenHangUp();
     } else {
       _callOrNull = VoiceCallController(
         audio: audio,
@@ -252,11 +257,15 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
         permission: permission,
         cutNote: cut,
         thinkingCue: cue,
+        keep: keep,
+        keepTitle: l10n.speechRealtimeCallKeepTitle,
+        keepText: l10n.speechRealtimeCallKeepText,
       )..addListener(_changed);
       ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
       ref.listenManual(voiceSettingsProvider, (_, _) => unawaited(_call.refreshRecognizer()));
       ref.listenManual(cloudAsrProvider, (_, _) => unawaited(_call.refreshRecognizer()));
       ref.listenManual(callSettingsProvider.select((s) => s.pause), (_, pause) => _call.setPause(pause));
+      listenHangUp();
     }
     await _call.start();
     if (_realtime || !mounted || _call.phase == CallPhase.ended) return;

@@ -20,6 +20,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../diagnostics/diagnostics_channel.dart';
+import '../realtime/realtime_keep.dart';
 import '../speech_audio.dart';
 import '../speech_out.dart';
 import '../voice_cloud.dart';
@@ -127,6 +128,9 @@ class VoiceCallController extends CallController {
     this.thinkingCue,
     this.confirmAfter = const Duration(milliseconds: 1600),
     this.cueAfter = const Duration(milliseconds: 1200),
+    this.keep,
+    this.keepTitle = 'Voice call',
+    this.keepText = 'Call in progress',
   });
 
   /// Talking on over her this long is taking the turn, whatever the words.
@@ -162,6 +166,11 @@ class VoiceCallController extends CallController {
 
   /// Asks for the microphone (the system dialog); false when refused.
   final Future<bool> Function()? permission;
+
+  /// Android microphone FGS so the call survives the app going to the background.
+  final RealtimeKeep? keep;
+  final String keepTitle;
+  final String keepText;
 
   /// The microphone is being asked for: the dialog may pause the app.
   @override
@@ -331,6 +340,7 @@ class VoiceCallController extends CallController {
     switch (started) {
       case CallStart.ok:
         unawaited(const DiagnosticsChannel().recordVoiceStage('capture_started'));
+        unawaited(_startKeep());
         if (audio.requiresSpeakerAck) {
           // A newer control can supersede this request while the call starts.
           // start() still waits for the current acknowledgement or call end.
@@ -346,6 +356,16 @@ class VoiceCallController extends CallController {
         _end(CallEnd.permission);
       case CallStart.microphone || CallStart.unavailable:
         _end(CallEnd.microphone);
+    }
+  }
+
+  Future<void> _startKeep() async {
+    final bridge = keep;
+    if (bridge == null) return;
+    try {
+      await bridge.startCallKeep(title: keepTitle, text: keepText);
+    } on Object {
+      // Keep is best-effort: without it, [backgrounded] still ends the call.
     }
   }
 
@@ -667,10 +687,11 @@ class VoiceCallController extends CallController {
   @override
   void hangUp() => _end(CallEnd.hungUp);
 
-  /// The app went to the background: Android gives a backgrounded app no
-  /// microphone, so the call ends rather than listen to silence.
+  /// Without [keep], a backgrounded Android app loses the mic — end the call.
+  /// With keep (microphone FGS), stay on so turn-based can continue like Realtime.
   @override
   void backgrounded() {
+    if (keep != null) return;
     if (!_asking) _end(CallEnd.background);
   }
 
@@ -685,10 +706,19 @@ class VoiceCallController extends CallController {
     unawaited(audio.stopCall());
     unawaited(_replySub?.cancel());
     unawaited(_audioSub?.cancel());
+    unawaited(_stopKeep());
     _set(CallPhase.ended);
     final ready = _initialSpeaker;
     _initialSpeaker = null;
     ready?.complete();
+  }
+
+  Future<void> _stopKeep() async {
+    try {
+      await keep?.stopCallKeep();
+    } on Object {
+      // Ending the call matters more than a failed FGS teardown.
+    }
   }
 
   void _set(CallPhase phase) {

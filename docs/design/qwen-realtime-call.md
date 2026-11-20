@@ -9,7 +9,7 @@
 - **云端**：百炼 Realtime 听写；需 Key；`RealtimeCallController` → DSH → App TTS。
 - **局域网**：主机 STT；`ws://` / 私网；Key 可空（`Bearer local`）；同上委派 DSH。
 - **DSH 闭环**：`session.update` 打开 `input_audio_transcription`，并设 `turn_detection.create_response: false`（云端不自动答）。用户转写定稿后经 `ChatCallConversation` 送入当前会话；agent 回复流式朗读。插话打断走 `conversation.interrupt()`。
-- **后台保活（Android）**：接通后起麦克风 FGS（`RealtimeCallService`）；`backgrounded` 不挂断；通知栏可挂断。不做语音唤醒。
+- **后台保活（Android）**：三种通话方式接通后都起麦克风 FGS（`RealtimeCallService` / `realtime_keep`）；`backgrounded` 不挂断；通知栏可挂断。非 Android 仍无 FGS，轮次制切后台会挂断。不做语音唤醒。
 - Debug APK 允许明文 `ws://`（`app/src/debug/res/xml/network_security_config.xml`）。日志标签 `dsh.realtime`。
 
 ## 代码

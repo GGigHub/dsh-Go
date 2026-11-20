@@ -34397,7 +34397,7 @@ abstract class L10n {
   /// No description provided for @speechRealtimeCallKeepText.
   ///
   /// In zh, this message translates to:
-  /// **'Realtime 全双工通话进行中'**
+  /// **'通话进行中'**
   String get speechRealtimeCallKeepText;
 
   /// No description provided for @speechCallEndBackgroundRealtime.

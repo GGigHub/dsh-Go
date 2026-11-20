@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dsh_app/speech/call/voice_call.dart';
 import 'package:dsh_app/speech/deepseek_speech.dart';
+import 'package:dsh_app/speech/realtime/realtime_keep.dart';
 import 'package:dsh_app/speech/speech_audio.dart';
 import 'package:dsh_app/speech/speech_out.dart';
 import 'package:flutter/services.dart';
@@ -494,5 +495,42 @@ void main() {
     rig.conversation.reply('好的。');
     expect(rig.outs, hasLength(1));
     rig.call.hangUp();
+  });
+
+  test('backgrounded hangs up without keep, stays up with keep', () async {
+    final noKeep = _Rig();
+    await noKeep.call.start();
+    noKeep.call.backgrounded();
+    expect(noKeep.call.phase, CallPhase.ended);
+    expect(noKeep.call.ended, CallEnd.background);
+    noKeep.call.dispose();
+
+    const channel = MethodChannel('dsh/realtime_keep');
+    final log = <String>[];
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      log.add(call.method);
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null);
+    });
+    final keep = RealtimeKeep(channel);
+    final withKeep = VoiceCallController(
+      audio: FakeAudio(),
+      conversation: FakeConversation(),
+      recognizer: () async => FakeCloud(),
+      voice: FakeOut.new,
+      choices: () async => (bargeIn: true, speaker: true, spokenHint: null, pause: CallPause.quick),
+      keep: keep,
+    );
+    await withKeep.start();
+    expect(log, contains('startCallKeep'));
+    withKeep.backgrounded();
+    expect(withKeep.phase, CallPhase.listening);
+    withKeep.hangUp();
+    await pumpEventQueue();
+    expect(log, contains('stopCallKeep'));
+    withKeep.dispose();
+    keep.dispose();
   });
 }
