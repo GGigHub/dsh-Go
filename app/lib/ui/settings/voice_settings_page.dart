@@ -206,65 +206,57 @@ class _VoiceSettingsPageState extends ConsumerState<VoiceSettingsPage> {
             children: [ohos ? const SystemAsrCard() : const StreamingAsrModelCard()],
           ),
         const _QwenRealtimeForm(),
-        Builder(
-          builder: (context) {
-            final realtime = ref.watch(qwenRealtimeSettingsProvider).ready;
-            return SettingsSection(
-              title: l10n.speechCallSection,
-              footer: Text(l10n.speechCallFooter),
-              children: [
-                SettingsTile(
-                  key: const ValueKey('speech-call-backdrop'),
-                  title: l10n.speechBackdropTitle,
-                  value: Text(switch (call.backdrop) {
-                    CallBackdrop.sea => l10n.speechBackdropSea,
-                    CallBackdrop.image => l10n.speechBackdropImage,
-                    CallBackdrop.companion => l10n.speechBackdropCompanion,
-                  }),
-                  onTap: () => unawaited(showCallBackdropSheet(context, realtime: realtime)),
-                ),
-                SettingsSwitchTile(
-                  key: const ValueKey('speech-call-barge-in'),
-                  title: l10n.speechCallBargeIn,
-                  subtitle: l10n.speechCallBargeInHint,
-                  value: call.bargeIn,
-                  onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(bargeIn: on))),
-                ),
-                SettingsSegmentTile<CallPause>(
-                  key: const ValueKey('speech-call-pause'),
-                  title: l10n.speechCallPause,
-                  subtitle: realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallPauseHint,
-                  segments: callPauseSegments(l10n),
-                  selected: call.pause,
-                  struck: realtime,
-                  onChanged: realtime ? null : (pause) => unawaited(calls.edit((saved) => saved.copyWith(pause: pause))),
-                ),
-                SettingsSwitchTile(
-                  key: const ValueKey('speech-call-spoken'),
-                  title: l10n.speechCallSpoken,
-                  subtitle: realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallSpokenHint,
-                  value: call.spoken,
-                  struck: realtime,
-                  onChanged: realtime ? null : (on) => unawaited(calls.edit((saved) => saved.copyWith(spoken: on))),
-                ),
-                SettingsSwitchTile(
-                  key: const ValueKey('speech-call-speaker'),
-                  title: l10n.speechCallSpeaker,
-                  subtitle: l10n.speechCallSpeakerHint,
-                  value: call.speaker,
-                  onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(speaker: on))),
-                ),
-                SettingsSwitchTile(
-                  key: const ValueKey('speech-call-cue'),
-                  title: l10n.speechCallCue,
-                  subtitle: realtime ? l10n.speechRealtimeLegacyHint : l10n.speechCallCueHint,
-                  value: call.cue,
-                  struck: realtime,
-                  onChanged: realtime ? null : (on) => unawaited(calls.edit((saved) => saved.copyWith(cue: on))),
-                ),
-              ],
-            );
-          },
+        SettingsSection(
+          title: l10n.speechCallSection,
+          footer: Text(l10n.speechCallFooter),
+          children: [
+            SettingsTile(
+              key: const ValueKey('speech-call-backdrop'),
+              title: l10n.speechBackdropTitle,
+              value: Text(switch (call.backdrop) {
+                CallBackdrop.sea => l10n.speechBackdropSea,
+                CallBackdrop.image => l10n.speechBackdropImage,
+                CallBackdrop.companion => l10n.speechBackdropCompanion,
+              }),
+              onTap: () => unawaited(showCallBackdropSheet(context)),
+            ),
+            SettingsSwitchTile(
+              key: const ValueKey('speech-call-barge-in'),
+              title: l10n.speechCallBargeIn,
+              subtitle: l10n.speechCallBargeInHint,
+              value: call.bargeIn,
+              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(bargeIn: on))),
+            ),
+            SettingsSegmentTile<CallPause>(
+              key: const ValueKey('speech-call-pause'),
+              title: l10n.speechCallPause,
+              subtitle: l10n.speechCallPauseHint,
+              segments: callPauseSegments(l10n),
+              selected: call.pause,
+              onChanged: (pause) => unawaited(calls.edit((saved) => saved.copyWith(pause: pause))),
+            ),
+            SettingsSwitchTile(
+              key: const ValueKey('speech-call-spoken'),
+              title: l10n.speechCallSpoken,
+              subtitle: l10n.speechCallSpokenHint,
+              value: call.spoken,
+              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(spoken: on))),
+            ),
+            SettingsSwitchTile(
+              key: const ValueKey('speech-call-speaker'),
+              title: l10n.speechCallSpeaker,
+              subtitle: l10n.speechCallSpeakerHint,
+              value: call.speaker,
+              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(speaker: on))),
+            ),
+            SettingsSwitchTile(
+              key: const ValueKey('speech-call-cue'),
+              title: l10n.speechCallCue,
+              subtitle: l10n.speechCallCueHint,
+              value: call.cue,
+              onChanged: (on) => unawaited(calls.edit((saved) => saved.copyWith(cue: on))),
+            ),
+          ],
         ),
       ],
     );

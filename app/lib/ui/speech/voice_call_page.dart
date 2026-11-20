@@ -641,7 +641,6 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
                                     context,
                                     inCall: true,
                                     beforeVoice: call.skip,
-                                    realtime: _realtime,
                                   ),
                                 ),
                         ),

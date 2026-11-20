@@ -19721,9 +19721,6 @@ class L10nEn extends L10n {
   String get speechRealtimeVoiceHelper => 'Cloud Realtime voice field; spoken replies use Companion/call voice';
 
   @override
-  String get speechRealtimeLegacyHint => 'Not used when cloud/LAN transcription owns turn-taking';
-
-  @override
   String get speechRealtimeKeyLabel => 'API key (cloud only)';
 
   @override

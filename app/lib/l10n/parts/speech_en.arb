@@ -53,7 +53,6 @@
   "speechRealtimeBaseHelper": "LAN e.g. ws://192.168.1.10:8765/v1/realtime; Omni: wss://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/api-ws/v1/realtime",
   "speechRealtimeModelHelper": "LAN: host-agreed id; Bailian default qwen3.8-omni-flash-realtime",
   "speechRealtimeVoiceHelper": "Cloud Realtime voice field; spoken replies use Companion/call voice",
-  "speechRealtimeLegacyHint": "Not used when cloud/LAN transcription owns turn-taking",
   "speechRealtimeKeyLabel": "API key (cloud only)",
   "speechRealtimeBaseLabel": "Endpoint",
   "speechRealtimeModelLabel": "Model",

@@ -34328,12 +34328,6 @@ abstract class L10n {
   /// **'云端 Realtime 音色字段；朗读实际用伙伴小屋/通话声音'**
   String get speechRealtimeVoiceHelper;
 
-  /// No description provided for @speechRealtimeLegacyHint.
-  ///
-  /// In zh, this message translates to:
-  /// **'云端/局域网听写模式下，此项由对端接管，不适用'**
-  String get speechRealtimeLegacyHint;
-
   /// No description provided for @speechRealtimeKeyLabel.
   ///
   /// In zh, this message translates to:

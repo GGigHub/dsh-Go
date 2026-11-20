@@ -18682,9 +18682,6 @@ class L10nZh extends L10n {
   String get speechRealtimeVoiceHelper => '云端 Realtime 音色字段；朗读实际用伙伴小屋/通话声音';
 
   @override
-  String get speechRealtimeLegacyHint => '云端/局域网听写模式下，此项由对端接管，不适用';
-
-  @override
   String get speechRealtimeKeyLabel => 'API Key（仅云端需要）';
 
   @override
