@@ -184,18 +184,40 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
       );
     }
     Future<bool> permission() async => await bridge.requestPermission() == VoicePermission.granted;
+    final speaker = ref.read(speechSpeakerProvider);
+    final deepseek = ref.read(deepSeekSpeechProvider);
+    SpeechOut makeVoice() => speechOutFor(
+      _voice,
+      deepseek: deepseek,
+      audio: audio,
+      speaker: speaker,
+      call: true,
+      levels: true,
+      gap: ref.read(deepSeekSpeechGapProvider),
+    );
+    Future<void> cue() async {
+      if ((await callSettings.ready()).cue && _call.cueStill) await playThinkingCue(audio);
+    }
+    String cut(String heard) =>
+        appNote(heard.isEmpty ? appL10n.speechCallCutEarly : appL10n.speechCallCutNote(heard));
     if (realtime.ready) {
       _realtime = true;
+      await _settleVoice(warm: true);
+      if (!mounted) return;
+      // Realtime: cloud VAD/ASR; DSH chat path keeps context, memory and tools.
       _callOrNull = RealtimeCallController(
         audio: audio,
         pcm: ref.read(streamingPcmCaptureProvider),
         settings: realtime,
+        conversation: widget.conversation,
+        voice: makeVoice,
         choices: choices,
         permission: permission,
+        cutNote: cut,
+        thinkingCue: cue,
       )..addListener(_changed);
+      ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
     } else {
-      final speaker = ref.read(speechSpeakerProvider);
-      final deepseek = ref.read(deepSeekSpeechProvider);
       _callOrNull = VoiceCallController(
         audio: audio,
         conversation: widget.conversation,
@@ -204,21 +226,11 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage> with WidgetsBindi
           if (!mounted) return null;
           return ref.read(callRecognizerProvider)();
         },
-        voice: () => speechOutFor(
-          _voice,
-          deepseek: deepseek,
-          audio: audio,
-          speaker: speaker,
-          call: true,
-          levels: true,
-          gap: ref.read(deepSeekSpeechGapProvider),
-        ),
+        voice: makeVoice,
         choices: choices,
         permission: permission,
-        cutNote: (heard) => appNote(heard.isEmpty ? appL10n.speechCallCutEarly : appL10n.speechCallCutNote(heard)),
-        thinkingCue: () async {
-          if ((await callSettings.ready()).cue && _call.cueStill) await playThinkingCue(audio);
-        },
+        cutNote: cut,
+        thinkingCue: cue,
       )..addListener(_changed);
       ref.listenManual(speechVoiceSettingsProvider, (_, _) => unawaited(_settleVoice()));
       ref.listenManual(voiceSettingsProvider, (_, _) => unawaited(_call.refreshRecognizer()));

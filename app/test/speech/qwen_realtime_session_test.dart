@@ -105,7 +105,8 @@ void main() {
     final sessionBody = update['session'] as Map<String, dynamic>;
     expect(sessionBody['voice'], 'Tina');
     expect(sessionBody['modalities'], ['text', 'audio']);
-    expect(sessionBody['turn_detection'], {'type': 'server_vad'});
+    expect(sessionBody['input_audio_transcription'], {'model': 'qwen3-asr-flash-realtime'});
+    expect(sessionBody['turn_detection'], {'type': 'server_vad', 'create_response': false});
     expect(sessionBody.containsKey('input_audio_format'), isFalse);
     expect(sessionBody.containsKey('audio'), isFalse);
     fake.incoming.add(jsonEncode({'type': 'session.updated'}));
@@ -158,6 +159,29 @@ void main() {
     final body = update['session'] as Map<String, dynamic>;
     expect(body['input_audio_format'], 'pcm16');
     expect(body.containsKey('audio'), isTrue);
+    expect(body['turn_detection'], containsPair('create_response', false));
+    fake.incoming.add(jsonEncode({'type': 'session.updated'}));
+    await opening;
+    await session.close();
+  });
+
+  test('delegateToAgent false keeps auto cloud reply', () async {
+    final fake = _FakeSocket();
+    final session = QwenRealtimeSession(
+      connect: (uri, {headers}) async => fake,
+    );
+    const settings = QwenRealtimeSettings(
+      key: 'sk-testkey0123456789abcdef',
+      model: 'qwen3.8-omni-flash-realtime',
+    );
+    final opening = session.open(settings, delegateToAgent: false);
+    await Future<void>.delayed(Duration.zero);
+    fake.incoming.add(jsonEncode({'type': 'session.created'}));
+    await Future<void>.delayed(Duration.zero);
+    final update = jsonDecode(fake.sent.single) as Map<String, dynamic>;
+    final body = update['session'] as Map<String, dynamic>;
+    expect(body['turn_detection'], {'type': 'server_vad'});
+    expect(body['turn_detection'], isNot(contains('create_response')));
     fake.incoming.add(jsonEncode({'type': 'session.updated'}));
     await opening;
     await session.close();

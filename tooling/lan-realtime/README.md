@@ -1,10 +1,10 @@
 # 局域网 Realtime 网关（LAN 先跑通）
 
-App 复用一期 Qwen Realtime 通话页，直连主机上的 WebSocket（**不经** DSH bridge / Relay）。  
+App 复用一期 Qwen Realtime 通话页，直连主机上的 WebSocket（**不经** DSH bridge / Relay）做听写与 VAD；**对话进 DSH 会话**（上下文 / 记忆 / 工具），回复用 App TTS。  
 本目录提供：
 
 1. **`gateway.py`**：协议冒烟网关（验证连接 + 短提示音），不跑大模型  
-2. 下文 **MiniCPM-o 4.5** 在 4080S（16GB）上的部署与对接说明
+2. 下文主机模型部署说明（优先 HF speech-to-speech；MiniCPM 备选）
 
 ## App 配置
 

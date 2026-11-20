@@ -101,7 +101,9 @@ class QwenRealtimeSession {
 
   bool get isOpen => _ws != null && !_closed;
 
-  Future<void> open(QwenRealtimeSettings settings) async {
+  /// [delegateToAgent]: VAD + 转写交给云端，不自动 `response.create`；
+  /// App 把转写送进 DSH 会话，由 agent 回答（上下文 / 记忆 / 工具）。
+  Future<void> open(QwenRealtimeSettings settings, {bool delegateToAgent = true}) async {
     if (_closed) throw StateError('session closed');
     final uri = settings.websocketUri;
     if (uri == null) throw ArgumentError('invalid realtime endpoint');
@@ -123,8 +125,8 @@ class QwenRealtimeSession {
     if (workspace != null) headers['X-DashScope-WorkSpace'] = workspace;
 
     realtimeLog(
-      'open localLan=$local model=${settings.model} omni=${settings.isOmniRealtime} '
-      'voice=${settings.voice} workspace=${workspace ?? '(none)'} '
+      'open localLan=$local delegateToAgent=$delegateToAgent model=${settings.model} '
+      'omni=${settings.isOmniRealtime} voice=${settings.voice} workspace=${workspace ?? '(none)'} '
       'key=${realtimeMaskSecret(key.isEmpty && local ? qwenRealtimeLocalBearer : key)} '
       'scheme=${uri.scheme} host=${uri.host} port=${uri.port} path=${uri.path} uri=$uri',
     );
@@ -139,7 +141,7 @@ class QwenRealtimeSession {
       final updated = _updated = Completer<void>();
       _pendingUpdate = {
         'type': 'session.update',
-        'session': _sessionConfig(settings),
+        'session': _sessionConfig(settings, delegateToAgent: delegateToAgent),
       };
       ws.listen(
         _onMessage,
@@ -167,29 +169,42 @@ class QwenRealtimeSession {
 
   /// Official field layout differs by model family — do not mix levels.
   /// LAN gateways always get the PCM audio shape the App already streams.
-  static Map<String, Object?> _sessionConfig(QwenRealtimeSettings settings) {
+  /// When [delegateToAgent], enable ASR transcription and set
+  /// `turn_detection.create_response: false` so Omni/gateway does not auto-chat.
+  static Map<String, Object?> _sessionConfig(
+    QwenRealtimeSettings settings, {
+    required bool delegateToAgent,
+  }) {
     final voice = settings.voice.trim().isEmpty
         ? (settings.isOmniRealtime ? 'Tina' : qwenRealtimeDefaultVoice)
         : settings.voice.trim();
+    final instructions = delegateToAgent
+        ? '你是语音通道。用户的话会交给本地 agent 处理；不要自行长篇回答。'
+        : '你是语音助手。用简短、口语化的中文回答，不要用 Markdown、列表或代码块。';
+    final turnDetection = <String, Object?>{
+      'type': 'server_vad',
+      if (delegateToAgent) 'create_response': false,
+    };
     if (settings.isOmniRealtime) {
-      // qwen3.8-omni-flash-realtime: modalities + voice + server_vad only.
+      // qwen3.8-omni-flash-realtime: slim shape + optional ASR / no auto-reply.
       return {
         'modalities': ['text', 'audio'],
         'voice': voice,
-        'instructions': '你是语音助手。用简短、口语化的中文回答，不要用 Markdown、列表或代码块。',
-        'turn_detection': {'type': 'server_vad'},
+        'instructions': instructions,
+        'input_audio_transcription': {'model': 'qwen3-asr-flash-realtime'},
+        'turn_detection': turnDetection,
       };
     }
     // LAN / qwen-audio-*-realtime-* and older omni shapes.
     return {
       'modalities': ['text', 'audio'],
       'voice': voice,
-      'instructions': '你是语音助手。用简短、口语化的中文回答，不要用 Markdown、列表或代码块。',
+      'instructions': instructions,
       'input_audio_format': 'pcm16',
       'output_audio_format': 'pcm16',
       'input_audio_transcription': {'model': 'qwen3-asr-flash-realtime'},
       'turn_detection': {
-        'type': 'server_vad',
+        ...turnDetection,
         'threshold': 0.2,
         'prefix_padding_ms': 300,
         'silence_duration_ms': 600,
