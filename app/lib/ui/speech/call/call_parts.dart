@@ -210,13 +210,22 @@ class CallStatus extends StatelessWidget {
           child: child,
         ),
       ),
-      child: Row(
+      child: Padding(
         key: ValueKey('$text$dots'),
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(text, style: style),
-          if (dots) _Dots(color: style?.color ?? CallInk.of(context).dim),
-        ],
+        padding: const EdgeInsets.symmetric(horizontal: 28),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width - 56),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: Text(text, textAlign: TextAlign.center, style: style),
+              ),
+              if (dots) _Dots(color: style?.color ?? CallInk.of(context).dim),
+            ],
+          ),
+        ),
       ),
     );
   }
