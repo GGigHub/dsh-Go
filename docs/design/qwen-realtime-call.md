@@ -23,3 +23,7 @@
 | `tooling/lan-realtime/` | LAN 冒烟网关与主机部署说明 |
 
 验收：Project Store / 真机；主机步骤见 `tooling/lan-realtime/README.md`。
+
+## 方案 2（局域网听写）
+
+主机部署 **VAD + STT**（Realtime 协议出转写）即可；**不要**默认装完整 HF speech-to-speech（含 LLM+TTS）——会与 DSH 大脑重复。朗读仍走 App TTS。细节见 `tooling/lan-realtime/README.md`。

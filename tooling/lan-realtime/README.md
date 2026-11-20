@@ -1,28 +1,44 @@
-# 局域网 Realtime 网关（LAN 先跑通）
+# 局域网 Realtime 网关（LAN）
 
-App 复用一期 Qwen Realtime 通话页，直连主机上的 WebSocket（**不经** DSH bridge / Relay）做听写与 VAD；**对话进 DSH 会话**（上下文 / 记忆 / 工具），回复用 App TTS。  
+App 直连主机 WebSocket（**不经** DSH bridge / Relay）做 **VAD + 听写**；**对话进 DSH 会话**（上下文 / 记忆 / 工具），回复用 App `SpeechOut` TTS。  
+默认 `delegateToAgent=true`：`create_response: false`，主机 **不要** 再跑一套聊天 LLM。
+
 本目录提供：
 
-1. **`gateway.py`**：协议冒烟网关（验证连接 + 短提示音），不跑大模型  
-2. 下文主机模型部署说明（优先 HF speech-to-speech；MiniCPM 备选）
+1. **`gateway.py`**：协议冒烟（握手 + 短提示音），不跑大模型  
+2. 下文方案 2 主机部署（听写服务；完整 HF S2S 不推荐作默认）
 
 ## App 配置
 
-| 字段 | 冒烟网关 | MiniCPM（示例） |
+| 字段 | 冒烟 | 方案 2 听写主机 |
 |---|---|---|
 | 使用 Realtime 通话 | 开 | 开 |
-| 接入地址 | `ws://<主机局域网IP>:8091/v1/realtime` | 同左（或你的服务端口） |
-| 模型 | `lan-smoke` | `minicpm-o-4_5`（或网关要求的 id） |
-| API Key | 空 | 空（或与网关约定的 token） |
-| 音色 | 任意 | 任意（网关可忽略） |
+| 接入地址 | `ws://<主机IP>:8091/v1/realtime` | `ws://<主机IP>:8765/v1/realtime`（按实际） |
+| 模型 | `lan-smoke` | 网关约定 id（可随意，App 不依赖） |
+| API Key | 空 | 空（`Bearer local`） |
 
-手机与主机须同一局域网。Debug APK 已允许 `ws://` 明文。
+手机与主机同一局域网。Debug APK 允许 `ws://`。日志：`adb logcat -d | grep dsh.realtime`。
 
-日志：
+## 架构（方案 2）
 
-```bash
-adb logcat -d | grep dsh.realtime
 ```
+手机 mic → Realtime WS → 主机 VAD/STT → transcript
+                                    ↓
+                          ChatCall → DSH agent（记忆/工具）
+                                    ↓
+                          App SpeechOut TTS → 听筒
+```
+
+这与 dsh-Go **原轮次制通话**同构，只是把 ASR 从「云端/本机」换成「主机本地模型」。
+
+**主机不必部署完整 speech-to-speech（STT→LLM→TTS）。**  
+默认 `speech-to-speech serve` 自带 LLM，会和 DSH 抢大脑；TTS 也会被 App 侧忽略。
+
+| 主机跑什么 | 是否推荐 | 原因 |
+|---|---|---|
+| VAD + STT，Realtime 协议，出转写 | ✅ 推荐 | 与 App 闭环匹配，显存小 |
+| 完整 HF S2S（含 LLM+TTS） | ⚠️ 不推荐默认 | 双大脑；主机 LLM/TTS 基本浪费 |
+| MiniCPM 真全双工 Omni | 备选 | 与「DSH 大脑」目标冲突，且吃显存 |
 
 ## 1. 协议冒烟（先做）
 
@@ -30,69 +46,56 @@ adb logcat -d | grep dsh.realtime
 cd tooling/lan-realtime
 python3 -m pip install websockets
 python3 gateway.py --host 0.0.0.0 --port 8091
-# 查局域网 IP：ipconfig / ifconfig / ip a
 ```
 
-主机防火墙放行 TCP `8091`。App 点「验证连接」应成功；再打语音通话，约 1 秒无上行后会听到短提示音并显示「局域网网关已连通。」
+防火墙放行 TCP `8091`。验证连接 → 短通话；冒烟网关约 1s 静音后有提示音（闭环后提示音可忽略，以转写→DSH 为准）。
 
-## 2. MiniCPM-o 4.5（4080S / 留显存）
+## 2. 主机听写（方案 2 推荐）
 
-约束：约 16GB 显存、不想占满、只要语音全双工。
+目标：暴露 OpenAI Realtime 兼容 `ws://0.0.0.0:<port>/v1/realtime`，至少支持：
 
-推荐：**INT4 + llama.cpp-omni 或 SGLang/vLLM duplex**，官方实测 INT4 约 **11GB**，BF16≈19GB 不适合 16GB 卡。
+1. `session.created` → 客户端 `session.update`（可含 `create_response: false`）→ `session.updated`  
+2. 上行 `input_audio_buffer.append`（PCM16 16k）  
+3. `speech_started` / `speech_stopped`  
+4. `conversation.item.input_audio_transcription.completed`（**必做**，App 靠它委派 DSH）  
+5. 忽略或尊重 `create_response: false`（即使主机仍加载了 LLM，也不要因 VAD 自动 `response.create`）
 
-### 权重
+### 用 Hugging Face speech-to-speech 时
 
-- Hugging Face：`openbmb/MiniCPM-o-4_5`（及仓库说明中的 INT4 / GGUF）
-- 文档：https://github.com/OpenBMB/MiniCPM-V/blob/main/docs/minicpm_o4dot5_en.md
+仓库：[huggingface/speech-to-speech](https://github.com/huggingface/speech-to-speech)  
+默认管线是 VAD→STT→**LLM**→TTS。对接本 App 时：
 
-### 运行时选型
+- **优先**：只依赖其 STT/VAD 与转写事件；确认客户端 `create_response: false` 后不会自动生成回复（以该版本文档为准；若仍自动生成，需改配置或加薄适配层丢掉 LLM 输出）。  
+- **不要指望**主机 LLM 代替 DSH；工具与记忆仍在 DSH。  
+- 4080S（16GB）：选小 STT（如 Parakeet / Whisper 量化）即可，**不必**再加载 4B LLM + TTS。
 
-| 方案 | 说明 |
-|---|---|
-| llama.cpp-omni | 端侧 INT4，官方称全双工约 ≥12GB GPU；适合单机冒烟 |
-| SGLang-Omni duplex | `/v1/realtime?duplex=1`；需自行或经薄适配层对齐 App 事件 |
-| vLLM-Omni | 同类；注意显存占用 |
-
-示例（以官方文档为准，命令随版本变化）：
+示例（命令随上游版本变化，以官方 `-h` 为准）：
 
 ```bash
-# 伪示例：按 MiniCPM / SGLang 当前文档替换
-# sglang 或 llama.cpp-omni 起服务后，监听例如 8091
+# 伪示例：按当前 speech-to-speech CLI 调整；务必 --host 0.0.0.0
+speech-to-speech serve --host 0.0.0.0 --port 8765 \
+  --stt parakeet-tdt
+# 若无法关掉 LLM：仍连 App，但以 dsh.realtime 的 delegate send 为准，
+# 并确认不会因主机自答抢麦；否则加适配层只转发转写事件。
 ```
 
-### 与 App 协议对齐（必做）
+App 接入地址填：`ws://<主机局域网IP>:8765/v1/realtime`。
 
-App 期望类百炼 Realtime 事件子集：
+鉴权：Key 空时 App 发 `Authorization: Bearer local`；可忽略。
 
-1. 服务端先发 `session.created`
-2. 客户端发 `session.update`（含 `input_audio_format=pcm16`、`audio.input 16k`、`audio.output 24k`、`server_vad`）
-3. 服务端回 `session.updated`
-4. 上行：`input_audio_buffer.append`（base64 PCM16）
-5. 下行：`response.created` → `response.audio.delta`（base64 PCM16 @ 24k）→ `response.done`
-6. 插话：`response.cancel`
-7. 可选：`input_audio_buffer.speech_started/stopped`、transcript delta
+## 3. 备选 MiniCPM-o 4.5（真全双工）
 
-若上游原生 `/v1/realtime` 字段不完全一致，在主机上加一层薄适配（可从本目录 `gateway.py` 改起），对手机只暴露：
+仅在明确要原生边听边说、且接受与 DSH 委派模型冲突时使用。INT4≈11GB；BF16≈19GB 不适合 16GB。长聊需滑动窗口。协议仍要出转写事件，否则 App 无法委派。
 
-`ws://0.0.0.0:8091/v1/realtime`
+## 4. 验收
 
-鉴权：Key 为空时 App 发送 `Authorization: Bearer local`；网关可忽略或校验该值。
+1. 验证连接成功；`localLan=true`、handshake OK  
+2. 说话后 log 出现 `delegate send`；DSH 会话里出现用户句  
+3. Agent 回复被 App TTS 读出（不是主机自答抢麦）  
+4. 插话：agent 回合被 interrupt  
 
-### 显存
+## 非目标
 
-- 启动时限制引擎 `gpu_memory_utilization` / `mem_fraction`（若框架支持），为其它进程留余量  
-- 只跑语音、不喂视频帧  
-
-## 3. 验收
-
-1. 验证连接成功  
-2. 通话：正在接通 → 在听；说话有回复/播报  
-3. AI 说话时插话：停播  
-4. `adb logcat | grep dsh.realtime` 可见 `localLan=true`、handshake OK、uplink/downlink 统计  
-
-## 非目标（本阶段）
-
-- 不经 DSH SSH/Relay 隧道  
-- 不对齐百炼 FC / MCP / 联网  
-- 不保证音色与智力对齐 `qwen3.8-omni-flash-realtime`
+- 不经 DSH SSH/Relay 隧道传语音  
+- 主机 LLM 替代 DSH agent  
+- 音色/智力对齐百炼 Omni 旗舰  
